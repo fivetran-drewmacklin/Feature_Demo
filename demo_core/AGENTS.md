@@ -38,7 +38,7 @@
 ## Progress log
 
 - Phase 1 — Architecture: approved. Microbatch deferred; raw-data defects originate in the R-generated CSVs; project-specific CI will use GitHub Actions path filtering and the dbt Administrative API.
-- Phase 2 — Snowflake setup: not started.
+- Phase 2 — Snowflake setup: `setup/snowflake_setup.sql` authored and statically reviewed; awaiting administrator execution in Snowflake.
 - Phase 3 — Raw data specification: not started.
 - Phase 4 — Foundation: not started.
 - Phase 5 — Staging: not started.
