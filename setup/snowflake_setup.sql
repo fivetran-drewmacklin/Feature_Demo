@@ -2,8 +2,8 @@
 -- Run this script as an administrator. dbt jobs must never use ACCOUNTADMIN.
 --
 -- Before running:
---   1. Replace <DBT_PRD_SVC_PUBLIC_KEY_WITHOUT_PEM_HEADERS> below.
---   2. Add one GRANT ROLE statement per developer in the marked section.
+--   1. Confirm the configured DBT_PRD_SVC public key matches the private key used by dbt Platform.
+--   2. Confirm the developer role grants in the marked section.
 --   3. Review the 100-credit monthly resource-monitor quota.
 
 -- =============================================================================
@@ -116,6 +116,8 @@ GRANT SELECT ON FUTURE VIEWS IN DATABASE CORE_RAW TO ROLE DBT_PRD_ROLE;
 -- dbt-owned databases
 -- =============================================================================
 
+-- Bootstrap with ACCOUNTADMIN, then transfer ownership. This avoids granting the
+-- dbt execution roles the broad account-level CREATE DATABASE privilege.
 USE ROLE ACCOUNTADMIN;
 
 CREATE DATABASE IF NOT EXISTS DEV_CORE_SLV
@@ -146,7 +148,9 @@ GRANT OWNERSHIP ON DATABASE PRD_CORE_CONFIG TO ROLE DBT_PRD_ROLE COPY CURRENT GR
 GRANT OWNERSHIP ON DATABASE PRD_FINANCE_GLD TO ROLE DBT_PRD_ROLE COPY CURRENT GRANTS;
 GRANT OWNERSHIP ON DATABASE PRD_FINANCE_CONFIG TO ROLE DBT_PRD_ROLE COPY CURRENT GRANTS;
 
--- Development schemas. CI creates additional temporary schemas in these databases.
+-- dbt can create these schemas because each execution role owns its databases.
+-- Precreating them makes the architecture explicit; AUDIT must exist before hooks log to it.
+-- CI still creates additional temporary schemas in the DEV databases.
 USE ROLE DBT_DEV_ROLE2;
 
 CREATE SCHEMA IF NOT EXISTS DEV_CORE_SLV.SALES;
@@ -242,8 +246,7 @@ CREATE USER IF NOT EXISTS DBT_PRD_SVC
     DEFAULT_WAREHOUSE = TRANSFORM_XS_WH
     COMMENT = 'Key-pair-authenticated dbt production service user; also used by CI with DBT_DEV_ROLE2';
 
--- REQUIRED: replace this placeholder with the unencrypted public key body only.
--- Remove the -----BEGIN/END PUBLIC KEY----- lines and all line breaks.
+-- Public key body only; private key remains in dbt Platform's secured credentials.
 ALTER USER DBT_PRD_SVC SET
     RSA_PUBLIC_KEY = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsMeFMoTnxsbVc89ftxgsCpxOJxvtpb8iZoRKBEcLSilUQy1lMUdOZ8fpGewd5nrQSCUDXsXDh2Bplbp/fzLDfgwzSJCcISArcrFXD8PdXRgWSWR8v0o7dfR49aYRD5E9eOd2jJJWPov5IDq5wAT9/WKGhRXPsYcEz2/S5nMbZJoigyZMKqqTjZWF9DA2eOrH7ywUuhQG0bF2mF2KlbpV3B8/yh3CHya/w9Sna0HC1Yv+xMmRPl0SVQVrMsKwldgQTJpg2ElIV5GUzZ9nwD8DlRROC4KtbSoNExqj7nBXkhrClSOdVvwCEL2MDSVJ6wCYGvaJ2tB4nF+QfGFAccUVLQIDAQAB';
 

@@ -31,7 +31,7 @@ Both projects target Snowflake and dbt Platform's Latest release track (dbt v2).
 
 ## CI and deployment
 
-- CI builds temporary schemas in DEV databases using `DBT_DEV_ROLE` and defers to Production.
+- CI builds temporary schemas in DEV databases using `DBT_DEV_ROLE2` and defers to Production.
 - Native dbt Platform monorepo CI triggers every attached project and has no project-subdirectory path filter.
 - Use GitHub Actions path filters plus the dbt Administrative API so changes under `demo_core/**` trigger only core CI, changes under `demo_finance/**` trigger only finance CI, and shared/setup changes trigger both when appropriate.
 - Production deployment of `demo_finance` must follow a successful `demo_core` production run so current public-model metadata is available.
