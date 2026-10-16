@@ -24,67 +24,52 @@ quoting:
 
 models:
   demo_core:
-    core_slv:
-      sales:
-        +database: CORE_SLV
+    staging:
+      +database: CORE_SLV
+      +materialized: view
+      +access: private
+      crm:
         +schema: sales
-        staging:
-          +materialized: view
-          +group: sales
-          +access: private
-        intermediate:
-          +materialized: table
-          +group: sales
-          +access: protected
+        +group: sales
       billing:
-        +database: CORE_SLV
         +schema: billing
-        staging:
-          +materialized: view
-          +group: billing
-          +access: private
-        intermediate:
-          +materialized: table
-          +group: billing
-          +access: protected
+        +group: billing
       product:
-        +database: CORE_SLV
         +schema: product
-        staging:
-          +materialized: view
-          +group: product
-          +access: private
-        intermediate:
-          +materialized: table
-          +group: product
-          +access: protected
-      finance_operations:
-        +database: CORE_SLV
+        +group: product
+      erp:
         +schema: finance_operations
-        staging:
-          +materialized: view
-          +group: finance_operations
-          +access: private
-        intermediate:
-          +materialized: table
-          +group: finance_operations
-          +access: protected
+        +group: finance_operations
+      market:
+        +schema: finance_operations
+        +group: finance_operations
+    intermediate:
+      +database: CORE_SLV
+      +materialized: table
+      +access: protected
+      sales:
+        +schema: sales
+        +group: sales
+      billing:
+        +schema: billing
+        +group: billing
+      product:
+        +schema: product
+        +group: product
+      finance_operations:
+        +schema: finance_operations
+        +group: finance_operations
       core:
-        +database: CORE_SLV
         +schema: core
-        intermediate:
-          +materialized: table
-          +group: core
-          +access: protected
-          int_core__country_codes:
-            +materialized: ephemeral
-        public:
-          +materialized: table
-          +group: core
-          +access: public
-
-
-
+        +group: core
+        int_core__country_codes:
+          +materialized: ephemeral
+    marts:
+      +database: CORE_SLV
+      +schema: core
+      +materialized: table
+      +group: core
+      +access: public
 
 seeds:
   demo_core:
@@ -117,7 +102,8 @@ data_tests:
     +database: CORE_CONFIG
     +schema: audit
 
-
+info_schema:
+  version: 1
 
 query-comment:
   comment: "demo_core | {{ node.unique_id if node is defined else 'operation' }}"

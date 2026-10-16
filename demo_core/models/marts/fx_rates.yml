@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: fx_rates
+    description: Governed daily currency-to-USD rates with prior-date fallback provenance.
+    config:
+      contract:
+        enforced: true
+      tags: [public_interface]
+      meta:
+        data_product: core
+        data_classification: internal
+        grain: one_rate_date_and_source_currency
+    columns:
+      - {name: rate_date, description: Date to which the rate applies., data_type: date, constraints: [{type: not_null}], data_tests: [not_null]}
+      - {name: from_currency, description: "{{ doc('currency_code') }}", data_type: varchar, constraints: [{type: not_null}]}
+      - {name: to_currency, description: Target currency; USD for this interface., data_type: varchar, constraints: [{type: not_null}]}
+      - {name: rate, description: Exact or carried-forward conversion rate to USD., data_type: "number(18,8)", constraints: [{type: not_null}]}
+      - {name: source_rate_date, description: Date from which the applied rate originated., data_type: date, constraints: [{type: not_null}]}
+      - {name: used_prior_rate, description: Whether a prior-date rate was used., data_type: boolean, constraints: [{type: not_null}]}
+      - {name: provider, description: Provider of the applied exchange rate., data_type: varchar}
+      - {name: _loaded_at, description: "{{ doc('raw_loaded_at') }}", data_type: timestamp_tz}

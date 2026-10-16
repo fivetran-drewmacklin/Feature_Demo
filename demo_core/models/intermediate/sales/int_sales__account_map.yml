@@ -18,3 +18,16 @@ models:
         data_tests: [not_null]
       - name: is_canonical_account
         description: Whether this source row supplies the canonical current attributes.
+
+unit_tests:
+  - name: test_account_map_normalizes_legal_suffixes
+    model: int_sales__account_map
+    given:
+      - input: ref('stg_crm__accounts')
+        rows:
+          - {account_id: CRM-1, account_name: "Acme, Inc.", website_domain: null, is_deleted: false, created_at: "2024-01-01 00:00:00+00"}
+          - {account_id: CRM-2, account_name: " ACME Incorporated ", website_domain: null, is_deleted: false, created_at: "2024-02-01 00:00:00+00"}
+    expect:
+      rows:
+        - {source_crm_account_id: CRM-1, canonical_crm_account_id: CRM-1, is_canonical_account: true, source_account_count: 2, company_match_key: "name:acme", normalized_account_name: acme}
+        - {source_crm_account_id: CRM-2, canonical_crm_account_id: CRM-1, is_canonical_account: false, source_account_count: 2, company_match_key: "name:acme", normalized_account_name: acme}

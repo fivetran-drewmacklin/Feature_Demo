@@ -3,12 +3,20 @@ version: 2
 models:
   - name: customers
     description: Governed conformed customers spanning active CRM companies and billing-only customers.
+    latest_version: 2
     config:
       contract:
         enforced: true
+      latest_version_pointer:
+        enabled: true
+      tags: [public_interface]
+      meta:
+        data_product: core
+        data_classification: internal
+        grain: one_conformed_customer
     columns:
       - name: customer_id
-        description: Stable conformed customer identifier.
+        description: "{{ doc('conformed_customer_id') }}"
         data_type: varchar
         constraints: [{type: not_null}]
         data_tests: [unique, not_null]
@@ -44,7 +52,7 @@ models:
         description: CRM annual revenue estimate in the customer currency.
         data_type: number(18,2)
       - name: currency
-        description: Primary customer currency.
+        description: "{{ doc('currency_code') }}"
         data_type: varchar
       - name: account_tier
         description: CRM commercial tier.
@@ -64,3 +72,11 @@ models:
       - name: updated_at
         description: Latest known customer update timestamp.
         data_type: timestamp_tz
+    versions:
+      - v: 1
+        deprecation_date: "2027-06-30"
+        columns:
+          - include: all
+            exclude: [billing_customer_ids, billing_status, customer_source]
+      - v: 2
+        defined_in: customers

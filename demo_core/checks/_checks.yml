@@ -1,0 +1,9 @@
+version: 2
+
+checks:
+  - name: public_models_enforce_contracts
+    description: Fails when a public Mesh interface does not enforce its contract.
+  - name: staging_models_are_views
+    description: Fails when a staging model is materialized as anything other than a view.
+  - name: public_models_owned_by_core
+    description: Fails when a public Mesh interface is not owned by the core group.

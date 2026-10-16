@@ -1,0 +1,21 @@
+select
+    gl_entry_id,
+    journal_id,
+    line_number,
+    posted_date,
+    account_code,
+    account_name,
+    account_type,
+    financial_statement,
+    sign_convention,
+    cost_center_id,
+    invoice_id,
+    customer_id,
+    description,
+    debit_cents,
+    credit_cents,
+    signed_amount_cents,
+    currency,
+    created_at,
+    _loaded_at
+from {{ ref('int_finance_operations__gl_entries') }}

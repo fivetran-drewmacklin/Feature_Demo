@@ -3,6 +3,9 @@ version: 2
 models:
   - name: int_sales__contacts
     description: Active CRM contacts mapped to conformed customers.
+    data_tests:
+      - expression_is_true:
+          arguments: {expression: "not is_primary or email is not null"}
     columns:
       - name: contact_id
         description: Stable CRM contact identifier.

@@ -18,7 +18,7 @@ Both projects target Snowflake and dbt Platform's Latest release track (dbt v2).
 - `demo_finance` consumes only public, contracted `demo_core` models through cross-project `ref()` calls in dbt Mesh.
 - Logical database names in dbt config omit environment prefixes. Custom database naming maps them to `DEV_*` for `DEV` and `TST`, and `PRD_*` for `PRD`.
 
-- Model folders mirror logical Snowflake destinations, for example `models/core_slv/sales/`.
+- Model folders are organized by modeling role: source-oriented `models/staging/<source>/`, ownership-oriented `models/intermediate/<domain>/`, and public silver interfaces in `models/marts/`. Physical Snowflake databases and schemas are configured explicitly in each project's `dbt_project.yml` and do not derive from these folder names.
 
 ## Snowflake environments
 
