@@ -28,7 +28,7 @@
 
 - Described sources with freshness.
 - Seeds in `CORE_CONFIG.REFERENCE` with explicit column types.
-- Private staging views and one private ephemeral helper.
+- Private staging views and one protected ephemeral helper.
 - Business-unit tables.
 - Merge incremental invoices model with a `unique_key`.
 - Timestamp-strategy SCD Type 2 account snapshot in `CORE_CONFIG.SNAPSHOTS`.
@@ -43,9 +43,9 @@
 - Phase 2 — Snowflake setup: completed; `setup/snowflake_setup.sql` ran successfully and created the required Snowflake objects.
 - Phase 3 — Raw data specification and load: completed; the standard dataset is loaded in `CORE_RAW`, warehouse invariants passed, and source timestamps were rebaselined.
 - Phase 4 — Foundation: completed; `demo_core` is the configured project subdirectory, DEV/TST/PRD naming macros are enforced, all 14 raw sources have freshness rules, and three typed reference seeds are loaded in DEV.
-
-- Phase 5 — Staging: not started.
+- Phase 5 — Staging: completed; 14 private staging views preserve source grains, reusable cleaning macros standardize strings/emails/domains/countries, a protected ephemeral country helper prevents normalized-key fanout, product JSON is safely parsed, ownership groups and access controls are active, and expected anomaly tests store failures in `CORE_CONFIG.AUDIT`.
 - Phase 6 — Business models: not started.
+
 - Phase 7 — Quality: not started.
 - Phase 8 — Governance: not started.
 - Phase 9 — Documentation: not started.

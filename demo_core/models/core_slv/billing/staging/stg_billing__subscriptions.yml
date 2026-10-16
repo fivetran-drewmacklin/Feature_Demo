@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: stg_billing__subscriptions
+    description: Cleaned current-state subscriptions with standardized plans, statuses, and currencies.
+    columns:
+      - name: subscription_id
+        description: Stable subscription identifier.
+        data_tests: [unique, not_null]
+      - name: billing_customer_id
+        description: Owning billing customer.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_billing__customers'), field: billing_customer_id}
+      - name: plan_code
+        description: Governed commercial plan identifier.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('plan_catalog'), field: plan_code}
+      - name: status
+        description: Normalized subscription status.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [trialing, active, past_due, paused, canceled]}
+      - name: currency
+        description: Uppercase subscription currency.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [USD, EUR, GBP, CAD, AUD]}

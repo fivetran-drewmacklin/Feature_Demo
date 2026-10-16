@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: stg_erp__cost_centers
+    description: Cleaned current cost-center reference data from ERP.
+    columns:
+      - name: cost_center_id
+        description: Stable cost-center identifier.
+        data_tests: [unique, not_null]
+      - name: cost_center_name
+        description: Trimmed cost-center name.
+        data_tests: [not_null]
+      - name: business_unit
+        description: Organizational business unit.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [Sales, Marketing, Product, Engineering, Finance, Operations, G&A]}

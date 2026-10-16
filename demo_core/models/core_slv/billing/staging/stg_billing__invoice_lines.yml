@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: stg_billing__invoice_lines
+    description: Cleaned invoice lines at one row per source line.
+    columns:
+      - name: invoice_line_id
+        description: Stable invoice-line identifier.
+        data_tests: [unique, not_null]
+      - name: invoice_id
+        description: Parent invoice.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_billing__invoices'), field: invoice_id}
+      - name: plan_code
+        description: Nullable plan identifier for subscription lines.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('plan_catalog'), field: plan_code}
+      - name: line_type
+        description: Normalized invoice-line classification.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [subscription, services, credit, tax]}

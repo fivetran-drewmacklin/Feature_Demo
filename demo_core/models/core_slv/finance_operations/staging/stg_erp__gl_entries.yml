@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: stg_erp__gl_entries
+    description: Cleaned general-ledger journal lines with a debit-positive signed amount.
+    columns:
+      - name: gl_entry_id
+        description: Stable journal-line identifier.
+        data_tests: [unique, not_null]
+      - name: account_code
+        description: Governed chart-of-accounts code.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('chart_of_accounts'), field: account_code}
+      - name: cost_center_id
+        description: Owning ERP cost center.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_erp__cost_centers'), field: cost_center_id}
+      - name: invoice_id
+        description: Nullable soft relationship to a billing invoice.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_billing__invoices'), field: invoice_id}
+              config: {severity: warn}
+      - name: signed_amount_cents
+        description: Debit amount less credit amount in minor currency units.
+      - name: currency
+        description: Uppercase journal currency.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [USD, EUR, GBP, CAD, AUD]}

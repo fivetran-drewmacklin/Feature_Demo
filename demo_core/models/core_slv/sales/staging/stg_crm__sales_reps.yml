@@ -1,0 +1,39 @@
+version: 2
+
+models:
+  - name: stg_crm__sales_reps
+    description: Cleaned current-state sales representative roster from CRM.
+    columns:
+      - name: sales_rep_id
+        description: Stable source identifier for the sales representative.
+        data_tests:
+          - unique
+          - not_null
+      - name: first_name
+        description: Trimmed given name.
+      - name: last_name
+        description: Trimmed family name.
+      - name: email
+        description: Lowercased and trimmed work email.
+        data_tests:
+          - unique
+          - not_null
+      - name: region
+        description: Uppercase sales region.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [AMER, EMEA, APAC]
+      - name: manager_sales_rep_id
+        description: Identifier of the representative's manager, null for top-level managers.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_crm__sales_reps')
+                field: sales_rep_id
+      - name: hire_date
+        description: Date the representative joined the company.
+      - name: is_active
+        description: Whether the representative is currently active.
+      - name: _loaded_at
+        description: Timestamp when the source row landed in CORE_RAW.

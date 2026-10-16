@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: stg_crm__opportunities
+    description: Cleaned current-state CRM sales opportunities.
+    columns:
+      - name: opportunity_id
+        description: Stable source identifier for the opportunity.
+        data_tests:
+          - unique
+          - not_null
+      - name: account_id
+        description: CRM account associated with the opportunity.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_crm__accounts')
+                field: account_id
+      - name: owner_sales_rep_id
+        description: Sales representative owning the opportunity.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_crm__sales_reps')
+                field: sales_rep_id
+      - name: opportunity_name
+        description: Trimmed opportunity name.
+      - name: stage
+        description: Normalized sales pipeline stage.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [prospecting, qualification, proposal, negotiation, closed_won, closed_lost]
+      - name: amount_cents
+        description: Potential contract value in minor currency units.
+      - name: currency
+        description: Uppercase ISO currency code.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [USD, EUR, GBP, CAD, AUD]
+      - name: probability
+        description: Source probability of closing, from zero through one.
+      - name: close_date
+        description: Expected or actual opportunity close date.
+      - name: created_at
+        description: Timestamp when the opportunity was created.
+      - name: updated_at
+        description: Timestamp of the latest source update.
+      - name: is_deleted
+        description: Whether the opportunity is soft deleted.
+      - name: _loaded_at
+        description: Timestamp when the source row landed in CORE_RAW.

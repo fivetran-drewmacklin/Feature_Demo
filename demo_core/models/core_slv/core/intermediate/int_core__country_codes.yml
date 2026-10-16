@@ -1,0 +1,12 @@
+version: 2
+
+models:
+  - name: int_core__country_codes
+    description: Protected ephemeral lookup with one row per normalized raw-country join key.
+    columns:
+      - name: normalized_country
+        description: Lowercased and trimmed country value used to join source records.
+      - name: country_code
+        description: ISO alpha-2 country code.
+      - name: country_name
+        description: Canonical English country name.

@@ -1,0 +1,23 @@
+version: 2
+
+groups:
+  - name: sales
+    description: CRM and sales-domain transformations owned by the Sales Analytics team.
+    owner:
+      name: Sales Analytics
+  - name: billing
+    description: Billing-platform transformations owned by the Billing Analytics team.
+    owner:
+      name: Billing Analytics
+  - name: product
+    description: Product telemetry transformations owned by the Product Analytics team.
+    owner:
+      name: Product Analytics
+  - name: finance_operations
+    description: ERP and market-data transformations owned by Finance Operations.
+    owner:
+      name: Finance Operations
+  - name: core
+    description: Governed cross-domain interfaces owned by Core Analytics Engineering.
+    owner:
+      name: Core Analytics Engineering

@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: stg_product__events
+    description: Product events with parsed JSON properties and measured receipt delay.
+    columns:
+      - name: event_id
+        description: Globally unique event identifier.
+        data_tests: [unique, not_null]
+      - name: event_name
+        description: Normalized product event name.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [login, page_view, feature_used, report_created, export_completed, api_call, invite_sent]}
+      - name: account_id
+        description: Nullable CRM account associated with the event.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_crm__accounts'), field: account_id}
+              config: {severity: warn}
+      - name: contact_id
+        description: Nullable CRM contact associated with the event.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_crm__contacts'), field: contact_id}
+              config: {severity: warn}
+      - name: properties_raw
+        description: Original JSON text retained for auditability.
+      - name: properties
+        description: Safely parsed JSON object.
+        data_tests: [not_null]
+      - name: received_delay_minutes
+        description: Minutes between event occurrence and receipt.

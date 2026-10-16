@@ -22,6 +22,46 @@ quoting:
   schema: false
   identifier: false
 
+models:
+  demo_core:
+    core_slv:
+      sales:
+        +database: CORE_SLV
+        +schema: sales
+        staging:
+          +materialized: view
+          +group: sales
+          +access: private
+      billing:
+        +database: CORE_SLV
+        +schema: billing
+        staging:
+          +materialized: view
+          +group: billing
+          +access: private
+      product:
+        +database: CORE_SLV
+        +schema: product
+        staging:
+          +materialized: view
+          +group: product
+          +access: private
+      finance_operations:
+        +database: CORE_SLV
+        +schema: finance_operations
+        staging:
+          +materialized: view
+          +group: finance_operations
+          +access: private
+      core:
+        +database: CORE_SLV
+        +schema: core
+        intermediate:
+          +materialized: ephemeral
+          +group: core
+          +access: protected
+
+
 seeds:
   demo_core:
     +database: CORE_CONFIG
@@ -47,6 +87,13 @@ seeds:
         account_type: varchar
         financial_statement: varchar
         sign_convention: varchar
+
+data_tests:
+  demo_core:
+    +database: CORE_CONFIG
+    +schema: audit
+
+
 
 query-comment:
   comment: "demo_core | {{ node.unique_id if node is defined else 'operation' }}"

@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: stg_billing__refunds
+    description: Cleaned refunds linked to their originating payments and invoices.
+    columns:
+      - name: refund_id
+        description: Stable refund identifier.
+        data_tests: [unique, not_null]
+      - name: payment_id
+        description: Refunded payment.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_billing__payments'), field: payment_id}
+      - name: invoice_id
+        description: Invoice associated with the refunded payment.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_billing__invoices'), field: invoice_id}
+      - name: reason
+        description: Normalized refund reason.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [customer_request, duplicate, fraud, service_issue, other]}
+      - name: status
+        description: Normalized refund status.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [pending, succeeded, failed]}
