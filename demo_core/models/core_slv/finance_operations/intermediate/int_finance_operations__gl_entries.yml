@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: int_finance_operations__gl_entries
+    description: General-ledger lines enriched with account classifications and conformed customers.
+    columns:
+      - name: gl_entry_id
+        description: Stable journal-line identifier.
+        data_tests: [unique, not_null]
+      - name: account_code
+        description: Governed chart-of-accounts code.
+        data_tests: [not_null]
+      - name: customer_id
+        description: Nullable conformed customer for invoice-related entries.
+      - name: signed_amount_cents
+        description: Debit-positive signed amount in minor currency units.
+        data_tests: [not_null]

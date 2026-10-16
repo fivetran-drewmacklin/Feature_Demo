@@ -1,0 +1,66 @@
+version: 2
+
+models:
+  - name: customers
+    description: Governed conformed customers spanning active CRM companies and billing-only customers.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: customer_id
+        description: Stable conformed customer identifier.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique, not_null]
+      - name: canonical_crm_account_id
+        description: Canonical active CRM account, null for billing-only customers.
+        data_type: varchar
+      - name: source_crm_account_ids
+        description: CRM account IDs consolidated into the customer.
+        data_type: varchar
+      - name: billing_customer_ids
+        description: Billing customer IDs consolidated into the customer.
+        data_type: varchar
+      - name: customer_name
+        description: Best available current company name.
+        data_type: varchar
+        constraints: [{type: not_null}]
+      - name: website_domain
+        description: Normalized company website domain.
+        data_type: varchar
+      - name: billing_country
+        description: Canonical billing country name.
+        data_type: varchar
+      - name: billing_country_code
+        description: ISO alpha-2 billing country code or UNKNOWN.
+        data_type: varchar
+      - name: industry
+        description: CRM industry classification.
+        data_type: varchar
+      - name: employee_count
+        description: CRM employee estimate.
+        data_type: number(10,0)
+      - name: annual_revenue
+        description: CRM annual revenue estimate in the customer currency.
+        data_type: number(18,2)
+      - name: currency
+        description: Primary customer currency.
+        data_type: varchar
+      - name: account_tier
+        description: CRM commercial tier.
+        data_type: varchar
+      - name: billing_status
+        description: Latest billing customer status.
+        data_type: varchar
+      - name: customer_source
+        description: Whether the customer is represented in CRM, billing, or both.
+        data_type: varchar
+        data_tests:
+          - accepted_values:
+              arguments: {values: [crm_and_billing, crm_only, billing_only]}
+      - name: created_at
+        description: Earliest known customer creation timestamp.
+        data_type: timestamp_tz
+      - name: updated_at
+        description: Latest known customer update timestamp.
+        data_type: timestamp_tz

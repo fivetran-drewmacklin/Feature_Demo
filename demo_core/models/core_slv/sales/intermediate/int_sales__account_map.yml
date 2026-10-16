@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: int_sales__account_map
+    description: Maps every CRM account ID to a deterministic canonical account and customer identifier.
+    columns:
+      - name: source_crm_account_id
+        description: Original CRM account identifier.
+        data_tests: [unique, not_null]
+      - name: canonical_crm_account_id
+        description: Canonical CRM account selected for the normalized company key.
+        data_tests: [not_null]
+      - name: customer_id
+        description: Stable surrogate identifier shared by all CRM records for the company.
+        data_tests: [not_null]
+      - name: company_match_key
+        description: Domain-first normalized key used to consolidate duplicate CRM records.
+        data_tests: [not_null]
+      - name: is_canonical_account
+        description: Whether this source row supplies the canonical current attributes.

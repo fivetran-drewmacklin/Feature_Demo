@@ -44,9 +44,9 @@
 - Phase 3 — Raw data specification and load: completed; the standard dataset is loaded in `CORE_RAW`, warehouse invariants passed, and source timestamps were rebaselined.
 - Phase 4 — Foundation: completed; `demo_core` is the configured project subdirectory, DEV/TST/PRD naming macros are enforced, all 14 raw sources have freshness rules, and three typed reference seeds are loaded in DEV.
 - Phase 5 — Staging: completed; 14 private staging views preserve source grains, reusable cleaning macros standardize strings/emails/domains/countries, a protected ephemeral country helper prevents normalized-key fanout, product JSON is safely parsed, ownership groups and access controls are active, and expected anomaly tests store failures in `CORE_CONFIG.AUDIT`.
-- Phase 6 — Business models: not started.
-
+- Phase 6 — Business models: completed; CRM duplicates collapse to canonical customers, billing-to-CRM matching is deterministic and unit tested, CRM account history uses a timestamp snapshot, invoices use merge incremental materialization with cross-table watermarks, FX gaps use prior-rate fallback, domain models are protected, and the contracted public `customers`, `subscriptions`, and `revenue` tables are ready for Mesh.
 - Phase 7 — Quality: not started.
+
 - Phase 8 — Governance: not started.
 - Phase 9 — Documentation: not started.
 - Phase 10 — dbt State: not started.

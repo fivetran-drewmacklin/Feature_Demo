@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: int_billing__invoices
+    description: Merge-incremental invoices enriched with conformed customers, reconciliation, and net collections.
+    columns:
+      - name: invoice_id
+        description: Stable invoice identifier and incremental merge key.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Conformed customer identifier.
+        data_tests: [not_null]
+      - name: billing_customer_id
+        description: Source billing customer identifier.
+        data_tests: [not_null]
+      - name: is_reconciled
+        description: Whether stored invoice amounts agree with recomputed line totals.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [true]}
+              config: {severity: warn, store_failures: true}
+      - name: reconciliation_difference_cents
+        description: Stored total less the total recomputed from invoice lines.
+      - name: record_updated_at
+        description: Greatest update timestamp across header, lines, payments, and refunds.
+        data_tests: [not_null]

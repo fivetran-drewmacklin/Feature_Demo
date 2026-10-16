@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: int_sales__opportunities
+    description: Active CRM opportunities mapped to conformed customers.
+    columns:
+      - name: opportunity_id
+        description: Stable opportunity identifier.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Conformed customer identifier.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('int_sales__accounts'), field: customer_id}
+      - name: stage
+        description: Current normalized pipeline stage.

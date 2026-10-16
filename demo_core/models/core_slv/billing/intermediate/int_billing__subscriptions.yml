@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: int_billing__subscriptions
+    description: Subscriptions enriched with conformed customers and governed plan attributes.
+    columns:
+      - name: subscription_id
+        description: Stable subscription identifier.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Conformed customer identifier.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('int_core__customer_matches'), field: customer_id}
+      - name: billing_customer_id
+        description: Source billing customer identifier.
+        data_tests: [not_null]
+      - name: plan_code
+        description: Governed plan identifier.
+        data_tests: [not_null]

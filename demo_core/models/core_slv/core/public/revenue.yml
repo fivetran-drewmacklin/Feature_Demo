@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: revenue
+    description: Governed invoice-grain revenue and net collections converted to USD.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - {name: invoice_id, description: Stable invoice identifier., data_type: varchar, constraints: [{type: not_null}], data_tests: [unique, not_null]}
+      - {name: invoice_number, description: Human-readable invoice number., data_type: varchar, constraints: [{type: not_null}]}
+      - {name: customer_id, description: Conformed customer identifier., data_type: varchar, constraints: [{type: not_null}]}
+      - {name: billing_customer_id, description: Source billing customer identifier., data_type: varchar, constraints: [{type: not_null}]}
+      - {name: subscription_id, description: Nullable originating subscription., data_type: varchar}
+      - {name: status, description: Normalized invoice status., data_type: varchar}
+      - {name: issue_date, description: Invoice issue date., data_type: date}
+      - {name: due_date, description: Invoice due date., data_type: date}
+      - {name: paid_at, description: Settlement timestamp when applicable., data_type: timestamp_tz}
+      - {name: currency, description: Invoice currency., data_type: varchar}
+      - {name: subtotal_cents, description: Stored subtotal in minor currency units., data_type: "number(18,0)"}
+      - {name: discount_cents, description: Discount magnitude in minor currency units., data_type: "number(18,0)"}
+      - {name: tax_cents, description: Tax in minor currency units., data_type: "number(18,0)"}
+      - {name: total_cents, description: Invoice total in minor currency units., data_type: "number(18,0)"}
+      - {name: amount_due_cents, description: Outstanding accounts receivable., data_type: "number(18,0)"}
+      - {name: successful_payment_cents, description: Successful payments applied to the invoice., data_type: "number(38,0)"}
+      - {name: successful_refund_cents, description: Successful refunds associated with the invoice., data_type: "number(38,0)"}
+      - {name: net_collections_cents, description: Successful payments less successful refunds., data_type: "number(38,0)"}
+      - {name: usd_exchange_rate, description: Applied conversion rate to USD., data_type: "number(18,8)"}
+      - {name: source_rate_date, description: Date from which the applied FX rate originated., data_type: date}
+      - {name: used_prior_rate, description: Whether a prior-date FX fallback was used., data_type: boolean}
+      - {name: total_usd_cents, description: Invoice total converted to USD cents., data_type: "number(18,0)"}
+      - {name: net_collections_usd_cents, description: Net collections converted to USD cents., data_type: "number(18,0)"}
+      - {name: is_reconciled, description: Whether invoice amounts reconcile to line detail., data_type: boolean}
+      - {name: record_updated_at, description: Greatest source update timestamp affecting the invoice., data_type: timestamp_tz}

@@ -32,6 +32,10 @@ models:
           +materialized: view
           +group: sales
           +access: private
+        intermediate:
+          +materialized: table
+          +group: sales
+          +access: protected
       billing:
         +database: CORE_SLV
         +schema: billing
@@ -39,6 +43,10 @@ models:
           +materialized: view
           +group: billing
           +access: private
+        intermediate:
+          +materialized: table
+          +group: billing
+          +access: protected
       product:
         +database: CORE_SLV
         +schema: product
@@ -46,6 +54,10 @@ models:
           +materialized: view
           +group: product
           +access: private
+        intermediate:
+          +materialized: table
+          +group: product
+          +access: protected
       finance_operations:
         +database: CORE_SLV
         +schema: finance_operations
@@ -53,13 +65,25 @@ models:
           +materialized: view
           +group: finance_operations
           +access: private
+        intermediate:
+          +materialized: table
+          +group: finance_operations
+          +access: protected
       core:
         +database: CORE_SLV
         +schema: core
         intermediate:
-          +materialized: ephemeral
+          +materialized: table
           +group: core
           +access: protected
+          int_core__country_codes:
+            +materialized: ephemeral
+        public:
+          +materialized: table
+          +group: core
+          +access: public
+
+
 
 
 seeds:

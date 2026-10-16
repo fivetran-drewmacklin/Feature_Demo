@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: int_core__customer_matches
+    description: Deterministic mapping of every billing customer to a conformed CRM customer or billing-only identity.
+    columns:
+      - name: billing_customer_id
+        description: Stable billing customer identifier.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Stable conformed customer identifier.
+        data_tests: [not_null]
+      - name: canonical_crm_account_id
+        description: Matched active canonical CRM account, null for billing-only customers.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('int_sales__accounts'), field: canonical_crm_account_id}
+      - name: match_method
+        description: Signal that determined the conformed match.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [direct_crm_id, domain_override, domain, normalized_name, billing_only]}
+      - name: has_crm_account_id_discrepancy
+        description: Whether a supplied CRM ID was invalid or contradicted by a strong domain match.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [false]}
+              config: {severity: warn, store_failures: true}
+
+unit_tests:
+  - name: test_customer_matching_prefers_strong_domain
+    description: A conflicting normalized domain overrides the supplied CRM account ID.
+    model: int_core__customer_matches
+    given:
+      - input: ref('int_billing__customers')
+        rows:
+          - {billing_customer_id: billing_1, crm_account_id: crm_wrong_source, customer_name: Correct Co, normalized_customer_name: correctco, website_domain: correct.example}
+          - {billing_customer_id: billing_2, crm_account_id: null, customer_name: Correct Co, normalized_customer_name: correctco, website_domain: correct.example}
+      - input: ref('int_sales__account_map')
+        rows:
+          - {source_crm_account_id: crm_wrong_source, canonical_crm_account_id: crm_wrong}
+          - {source_crm_account_id: crm_right_source, canonical_crm_account_id: crm_right}
+      - input: ref('int_sales__accounts')
+        rows:
+          - {customer_id: customer_wrong, canonical_crm_account_id: crm_wrong, website_domain: wrong.example, normalized_account_name: wrongco}
+          - {customer_id: customer_right, canonical_crm_account_id: crm_right, website_domain: correct.example, normalized_account_name: correctco}
+    expect:
+      rows:
+        - {billing_customer_id: billing_1, customer_id: customer_right, canonical_crm_account_id: crm_right, match_method: domain_override, has_crm_account_id_discrepancy: true}
+        - {billing_customer_id: billing_2, customer_id: customer_right, canonical_crm_account_id: crm_right, match_method: domain, has_crm_account_id_discrepancy: false}

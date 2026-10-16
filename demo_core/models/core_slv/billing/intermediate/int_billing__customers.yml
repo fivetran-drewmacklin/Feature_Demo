@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: int_billing__customers
+    description: Billing customers with normalized company names for cross-system matching.
+    columns:
+      - name: billing_customer_id
+        description: Stable billing customer identifier.
+        data_tests: [unique, not_null]
+      - name: crm_account_id
+        description: Nullable source-provided CRM account identifier.
+      - name: normalized_customer_name
+        description: Company name stripped of casing, punctuation, and common legal suffixes.
+        data_tests: [not_null]
+      - name: website_domain
+        description: Normalized website domain used as the strongest matching signal.

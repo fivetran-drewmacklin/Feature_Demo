@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: subscriptions
+    description: Governed subscription lifecycle interface for downstream projects.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - {name: subscription_id, description: Stable subscription identifier., data_type: varchar, constraints: [{type: not_null}], data_tests: [unique, not_null]}
+      - {name: customer_id, description: Conformed customer identifier., data_type: varchar, constraints: [{type: not_null}]}
+      - {name: billing_customer_id, description: Source billing customer identifier., data_type: varchar, constraints: [{type: not_null}]}
+      - {name: plan_code, description: Governed plan identifier., data_type: varchar, constraints: [{type: not_null}]}
+      - {name: plan_name, description: Human-readable plan name., data_type: varchar}
+      - {name: product_family, description: Commercial product family., data_type: varchar}
+      - {name: billing_interval, description: Contract billing interval., data_type: varchar}
+      - {name: status, description: Current subscription status., data_type: varchar}
+      - {name: started_at, description: Subscription start timestamp., data_type: timestamp_tz}
+      - {name: current_period_start, description: Current service-period start date., data_type: date}
+      - {name: current_period_end, description: Current service-period end date., data_type: date}
+      - {name: canceled_at, description: Cancellation timestamp when applicable., data_type: timestamp_tz}
+      - {name: quantity, description: Licensed subscription quantity., data_type: "number(10,0)"}
+      - {name: unit_price_cents, description: Unit price in minor currency units., data_type: "number(18,0)"}
+      - {name: currency, description: Subscription currency., data_type: varchar}
+      - {name: updated_at, description: Latest source update timestamp., data_type: timestamp_tz}
+      - {name: _loaded_at, description: Raw ingestion timestamp., data_type: timestamp_tz}

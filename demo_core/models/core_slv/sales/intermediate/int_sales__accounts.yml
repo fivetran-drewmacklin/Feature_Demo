@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: int_sales__accounts
+    description: Current active CRM companies at one row per canonical account.
+    columns:
+      - name: customer_id
+        description: Stable conformed customer identifier.
+        data_tests: [unique, not_null]
+      - name: canonical_crm_account_id
+        description: Canonical CRM account identifier.
+        data_tests: [unique, not_null]
+      - name: company_match_key
+        description: Domain-first normalized company key.
+        data_tests: [unique, not_null]
+      - name: source_crm_account_ids
+        description: Comma-delimited CRM IDs consolidated into this company.
+      - name: source_account_count
+        description: Number of source CRM accounts consolidated into this company.

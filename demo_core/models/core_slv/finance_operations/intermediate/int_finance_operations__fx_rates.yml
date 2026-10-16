@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: int_finance_operations__fx_rates
+    description: Complete daily currency-to-USD rates with most-recent-prior-date fallback.
+    columns:
+      - name: rate_date
+        description: Calendar date to which the rate is applied.
+        data_tests: [not_null]
+      - name: from_currency
+        description: Source currency.
+        data_tests: [not_null]
+      - name: rate
+        description: Exact or carried-forward conversion rate to USD.
+        data_tests: [not_null]
+      - name: source_rate_date
+        description: Date from which the applied rate originated.
+        data_tests: [not_null]
+      - name: used_prior_rate
+        description: Whether an exact daily rate was missing and a prior rate was used.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [false]}
+              config: {severity: warn, store_failures: true}
