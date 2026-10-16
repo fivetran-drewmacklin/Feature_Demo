@@ -24,6 +24,10 @@ quoting:
 
 models:
   demo_core:
+    +persist_docs:
+      relation: true
+      columns: true
+
     staging:
       +database: CORE_SLV
       +materialized: view
