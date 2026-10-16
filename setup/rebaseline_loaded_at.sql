@@ -21,7 +21,7 @@
 -- apply it, SECTION 4 to confirm. Sections 2 and 3 use the same variable.
 -- =============================================================================
 
-USE ROLE DEV_DBT_ROLE2;
+USE ROLE SYSADMIN;   -- UPDATE on CORE_RAW; the dbt dev role is read-only
 USE WAREHOUSE TRANSFORM_XS_WH;
 USE DATABASE CORE_RAW;
 
