@@ -1825,11 +1825,52 @@ if (recon_bad > allow_recon) {
   fail(sprintf("invoice reconciliation: %d mismatches (allowed %d)", recon_bad, allow_recon))
 }
 
-# Amount due within bounds
+# Amount due: bounds, then an independent recomputation of the full formula.
+# The bounds check alone would pass on a value that is in range but wrong, so
+# the formula is re-derived here from the payments table rather than reusing the
+# settled vector the generator built.
 ad_bad <- sum(invoices$amount_due_cents < 0 |
                 (invoices$amount_due_cents > invoices$total_cents &
                    invoices$total_cents >= 0))
 if (ad_bad > 0 && !INJECT_BROKEN) fail(sprintf("amount_due out of bounds: %d rows", ad_bad))
+
+succeeded <- payments[payments$status == "succeeded", ]
+settled_by_inv <- tapply(succeeded$amount_cents, succeeded$invoice_id, sum)
+
+settled_statuses <- c("paid", "PAID_LATE", "complete")
+formula_bad <- 0L
+settle_rule_bad <- 0L
+for (i in seq_len(nrow(invoices))) {
+  iid <- invoices$invoice_id[i]
+  tot <- invoices$total_cents[i]
+  st  <- invoices$status[i]
+  s <- if (!is.na(iid) && iid %in% names(settled_by_inv)) {
+    as.numeric(settled_by_inv[[iid]])
+  } else 0
+
+  expected <- if (st %in% settled_statuses || st == "void") {
+    0
+  } else {
+    max(0, min(tot, tot - s))
+  }
+  if (tot < 0) expected <- 0
+
+  if (invoices$amount_due_cents[i] != expected) formula_bad <- formula_bad + 1L
+
+  # A settled status is only legitimate when payments cover the total exactly.
+  if (st %in% settled_statuses && tot > 0 && s != tot) {
+    settle_rule_bad <- settle_rule_bad + 1L
+  }
+}
+allow_ad <- if (INJECT_BROKEN) 2 else 0   # broken mode appends conflicting dupes
+if (formula_bad > allow_ad) {
+  fail(sprintf("amount_due formula mismatch: %d rows (allowed %d)",
+               formula_bad, allow_ad))
+}
+if (settle_rule_bad > allow_ad) {
+  fail(sprintf("settled-status invoices not exactly covered by payments: %d rows",
+               settle_rule_bad))
+}
 
 # Refunds vs payments
 ref_bad <- 0L

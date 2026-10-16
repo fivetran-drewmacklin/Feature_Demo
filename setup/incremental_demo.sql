@@ -16,11 +16,19 @@
 -- never touch generator data. Updated rows are restored from the clones, so no
 -- original values need to be recorded anywhere.
 --
+-- IDEMPOTENCY. Sections 2 and 3 can be rerun any number of times and converge
+-- on the same state. Two mechanisms achieve that: every insert deletes its own
+-- demo_ rows first, and every update selects its target rows from the BACKUP
+-- clone rather than from the live table. Selecting from the live table would
+-- make a rerun pick a different set each time, because the previous run already
+-- changed the rows it matched. Section 1 is therefore a hard prerequisite for
+-- section 3.
+--
 -- Every mutation advances UPDATED_AT and _LOADED_AT together, keeping
 -- _LOADED_AT >= UPDATED_AT.
 -- =============================================================================
 
-USE ROLE DEV_DBT_ROLE2;
+USE ROLE SYSADMIN;   -- the dbt dev role is read-only on CORE_RAW
 USE WAREHOUSE TRANSFORM_XS_WH;
 USE DATABASE CORE_RAW;
 
@@ -51,11 +59,18 @@ SELECT 'backup complete' AS status,
 -- the comparison.
 -- =============================================================================
 
--- Five new invoices against existing customers and subscriptions.
+-- Re-run guard: clear any demo rows from a previous run before inserting.
+DELETE FROM BILLING.INVOICE_LINES WHERE invoice_line_id LIKE 'demo_%';
+DELETE FROM BILLING.PAYMENTS      WHERE payment_id      LIKE 'demo_%';
+DELETE FROM BILLING.INVOICES      WHERE invoice_id      LIKE 'demo_%';
+DELETE FROM PRODUCT.EVENTS        WHERE event_id        LIKE 'demo_%';
+
+-- Five new invoices against existing active subscriptions. Targets are chosen
+-- from the backup clone and ordered by key, so a rerun picks the same five.
 INSERT INTO BILLING.INVOICES
 SELECT
-  'demo_inv_' || LPAD(seq4() + 1, 6, '0')                         AS invoice_id,
-  'INV-DEMO-' || LPAD(seq4() + 1, 5, '0')                         AS invoice_number,
+  'demo_inv_' || LPAD(c.rn, 6, '0')                               AS invoice_id,
+  'INV-DEMO-' || LPAD(c.rn, 5, '0')                               AS invoice_number,
   c.billing_customer_id,
   c.subscription_id,
   'open'                                                          AS status,
@@ -76,11 +91,10 @@ FROM (
   SELECT s.billing_customer_id, s.subscription_id, s.unit_price_cents,
          s.quantity, s.currency,
          ROW_NUMBER() OVER (ORDER BY s.subscription_id) AS rn
-  FROM BILLING.SUBSCRIPTIONS s
+  FROM BILLING.SUBSCRIPTIONS_DEMO_BACKUP s
   WHERE s.status = 'active'
   QUALIFY rn <= 5
-) c,
-TABLE(GENERATOR(ROWCOUNT => 1));
+) c;
 
 -- One subscription line per new invoice, so reconciliation still holds.
 INSERT INTO BILLING.INVOICE_LINES
@@ -98,7 +112,7 @@ SELECT
   CURRENT_TIMESTAMP()                            AS updated_at,
   CURRENT_TIMESTAMP()                            AS _loaded_at
 FROM BILLING.INVOICES i
-JOIN BILLING.SUBSCRIPTIONS s ON s.subscription_id = i.subscription_id
+JOIN BILLING.SUBSCRIPTIONS_DEMO_BACKUP s ON s.subscription_id = i.subscription_id
 WHERE i.invoice_id LIKE 'demo_inv_%';
 
 -- Matching tax lines.
@@ -116,21 +130,22 @@ WHERE i.invoice_id LIKE 'demo_inv_%' AND i.tax_cents > 0;
 -- 500 new product events, landing in the last hour.
 INSERT INTO PRODUCT.EVENTS
 SELECT
-  'demo_evt_' || LPAD(seq4() + 1, 6, '0')                     AS event_id,
+  'demo_evt_' || LPAD(ROW_NUMBER() OVER (ORDER BY a.account_id, g.seq), 6, '0') AS event_id,
   ARRAY_CONSTRUCT('login','page_view','feature_used','api_call')[UNIFORM(0, 3, RANDOM())]::VARCHAR
                                                               AS event_name,
   a.account_id,
   NULL                                                        AS contact_id,
   NULL                                                        AS anonymous_id,
-  'demo_sess_' || LPAD(seq4() + 1, 9, '0')                    AS session_id,
+  'demo_sess_' || LPAD(ROW_NUMBER() OVER (ORDER BY a.account_id, g.seq), 9, '0') AS session_id,
   DATEADD(minute, -UNIFORM(5, 55, RANDOM()), CURRENT_TIMESTAMP()) AS event_timestamp,
   DATEADD(minute, -UNIFORM(1, 4, RANDOM()), CURRENT_TIMESTAMP())  AS received_at,
   '{"source":"demo","feature_name":"dashboard"}'              AS properties,
   CURRENT_TIMESTAMP()                                         AS _loaded_at
 FROM (
-  SELECT account_id FROM CRM.ACCOUNTS WHERE is_deleted = FALSE LIMIT 50
-) a,
-TABLE(GENERATOR(ROWCOUNT => 10));
+  SELECT account_id FROM CRM.ACCOUNTS_DEMO_BACKUP
+  WHERE is_deleted = FALSE ORDER BY account_id LIMIT 50
+) a
+CROSS JOIN (SELECT seq4() AS seq FROM TABLE(GENERATOR(ROWCOUNT => 10))) g;
 
 -- =============================================================================
 -- SECTION 3. UPDATE
@@ -138,9 +153,12 @@ TABLE(GENERATOR(ROWCOUNT => 10));
 -- Changes to rows that already exist. These are what separate a merge-based
 -- incremental model from an append-only one: a model keyed on INVOICE_ID with
 -- an UPDATED_AT filter updates these in place, while append would duplicate.
+--
+-- Every target set is read from the BACKUP clone, so reruns hit the same rows.
+-- Section 1 must have run.
 -- =============================================================================
 
--- 3a. Twenty open invoices get paid.
+-- 3a. Twenty invoices that were open at backup time get paid.
 UPDATE BILLING.INVOICES
 SET status           = 'paid',
     paid_at          = CURRENT_TIMESTAMP(),
@@ -148,46 +166,73 @@ SET status           = 'paid',
     updated_at       = CURRENT_TIMESTAMP(),
     _loaded_at       = CURRENT_TIMESTAMP()
 WHERE invoice_id IN (
-  SELECT invoice_id FROM BILLING.INVOICES
+  SELECT invoice_id FROM BILLING.INVOICES_DEMO_BACKUP
   WHERE status = 'open' AND invoice_id NOT LIKE 'demo_%'
-  ORDER BY issue_date DESC LIMIT 20
+  ORDER BY invoice_id LIMIT 20
 );
 
--- 3b. A succeeded payment for each, so the settlement rule still holds.
+-- 3b. A succeeded payment covering the REMAINING balance on each.
+--
+-- Some of those invoices already carry a partial succeeded payment. Inserting
+-- the full total would push settled above total and break the rule that a paid
+-- invoice is settled exactly. Subtract what is already there, and skip any
+-- invoice that is somehow already covered.
+DELETE FROM BILLING.PAYMENTS WHERE payment_id LIKE 'demo_pay_%';
+
 INSERT INTO BILLING.PAYMENTS
+WITH targets AS (
+  SELECT invoice_id FROM BILLING.INVOICES_DEMO_BACKUP
+  WHERE status = 'open' AND invoice_id NOT LIKE 'demo_%'
+  ORDER BY invoice_id LIMIT 20
+),
+already AS (
+  SELECT p.invoice_id, COALESCE(SUM(p.amount_cents), 0) AS settled
+  FROM BILLING.PAYMENTS p
+  JOIN targets t ON t.invoice_id = p.invoice_id
+  WHERE p.status = 'succeeded'
+  GROUP BY p.invoice_id
+),
+balance AS (
+  SELECT i.invoice_id, i.billing_customer_id, i.currency, i.paid_at,
+         i.total_cents - COALESCE(a.settled, 0) AS remaining
+  FROM BILLING.INVOICES i
+  JOIN targets t ON t.invoice_id = i.invoice_id
+  LEFT JOIN already a ON a.invoice_id = i.invoice_id
+)
 SELECT
-  'demo_pay_' || LPAD(ROW_NUMBER() OVER (ORDER BY i.invoice_id), 6, '0'),
-  i.invoice_id,
-  i.billing_customer_id,
+  'demo_pay_' || LPAD(ROW_NUMBER() OVER (ORDER BY invoice_id), 6, '0'),
+  invoice_id,
+  billing_customer_id,
   'succeeded',
-  i.total_cents,
-  i.currency,
-  i.paid_at,
+  remaining,
+  currency,
+  paid_at,
   'card',
-  'PR-DEMO-' || LPAD(ROW_NUMBER() OVER (ORDER BY i.invoice_id), 8, '0'),
+  'PR-DEMO-' || LPAD(ROW_NUMBER() OVER (ORDER BY invoice_id), 8, '0'),
   CURRENT_TIMESTAMP(),
   CURRENT_TIMESTAMP()
-FROM BILLING.INVOICES i
-WHERE i.paid_at >= DATEADD(minute, -5, CURRENT_TIMESTAMP())
-  AND i.invoice_id NOT LIKE 'demo_%';
+FROM balance
+WHERE remaining > 0;
 
 -- 3c. Three observable subscription upgrades. STARTER to GROWTH, with the
 --     price change that goes with it. This is the transition the current-state
 --     files cannot show on their own.
-UPDATE BILLING.SUBSCRIPTIONS
-SET plan_code        = REPLACE(plan_code, 'STARTER', 'GROWTH'),
-    unit_price_cents = CASE
-                         WHEN plan_code = 'STARTER_MONTHLY' THEN 19900
-                         WHEN plan_code = 'STARTER_ANNUAL'  THEN 199000
-                         ELSE unit_price_cents
+UPDATE BILLING.SUBSCRIPTIONS t
+SET plan_code        = REPLACE(b.plan_code, 'STARTER', 'GROWTH'),
+    unit_price_cents = CASE b.plan_code
+                         WHEN 'STARTER_MONTHLY' THEN 19900
+                         WHEN 'STARTER_ANNUAL'  THEN 199000
+                         ELSE b.unit_price_cents
                        END,
     updated_at       = CURRENT_TIMESTAMP(),
     _loaded_at       = CURRENT_TIMESTAMP()
-WHERE subscription_id IN (
-  SELECT subscription_id FROM BILLING.SUBSCRIPTIONS
-  WHERE plan_code LIKE 'STARTER%' AND status = 'active'
-  ORDER BY subscription_id LIMIT 3
-);
+FROM BILLING.SUBSCRIPTIONS_DEMO_BACKUP b
+WHERE t.subscription_id = b.subscription_id
+  AND t.subscription_id IN (
+    SELECT subscription_id FROM BILLING.SUBSCRIPTIONS_DEMO_BACKUP
+    WHERE plan_code LIKE 'STARTER%' AND status = 'active'
+    ORDER BY subscription_id LIMIT 3
+  );
 
 -- 3d. Two downgrades, for the opposite direction.
 UPDATE BILLING.SUBSCRIPTIONS
@@ -196,7 +241,7 @@ SET plan_code        = 'STARTER_MONTHLY',
     updated_at       = CURRENT_TIMESTAMP(),
     _loaded_at       = CURRENT_TIMESTAMP()
 WHERE subscription_id IN (
-  SELECT subscription_id FROM BILLING.SUBSCRIPTIONS
+  SELECT subscription_id FROM BILLING.SUBSCRIPTIONS_DEMO_BACKUP
   WHERE plan_code = 'GROWTH_MONTHLY' AND status = 'active'
   ORDER BY subscription_id DESC LIMIT 2
 );
@@ -208,24 +253,27 @@ SET is_deleted = TRUE,
     updated_at = CURRENT_TIMESTAMP(),
     _loaded_at = CURRENT_TIMESTAMP()
 WHERE account_id IN (
-  SELECT account_id FROM CRM.ACCOUNTS
+  SELECT account_id FROM CRM.ACCOUNTS_DEMO_BACKUP
   WHERE is_deleted = FALSE ORDER BY account_id DESC LIMIT 5
 );
 
--- 3f. Ten account attribute changes, for snapshot column tracking.
-UPDATE CRM.ACCOUNTS
-SET account_tier = CASE account_tier
-                     WHEN 'smb'        THEN 'mid_market'
-                     WHEN 'mid_market' THEN 'enterprise'
-                     ELSE 'enterprise'
-                   END,
-    employee_count = COALESCE(employee_count, 100) * 2,
+-- 3f. Ten account attribute changes, for snapshot column tracking. Derived from
+--     the backup values, so a rerun does not tier up a second time.
+UPDATE CRM.ACCOUNTS t
+SET account_tier   = CASE b.account_tier
+                       WHEN 'smb'        THEN 'mid_market'
+                       WHEN 'mid_market' THEN 'enterprise'
+                       ELSE 'enterprise'
+                     END,
+    employee_count = COALESCE(b.employee_count, 100) * 2,
     updated_at     = CURRENT_TIMESTAMP(),
     _loaded_at     = CURRENT_TIMESTAMP()
-WHERE account_id IN (
-  SELECT account_id FROM CRM.ACCOUNTS
-  WHERE is_deleted = FALSE ORDER BY account_id LIMIT 10
-);
+FROM CRM.ACCOUNTS_DEMO_BACKUP b
+WHERE t.account_id = b.account_id
+  AND t.account_id IN (
+    SELECT account_id FROM CRM.ACCOUNTS_DEMO_BACKUP
+    WHERE is_deleted = FALSE ORDER BY account_id LIMIT 10
+  );
 
 -- =============================================================================
 -- SECTION 4. VERIFY

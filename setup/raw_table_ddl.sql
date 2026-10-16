@@ -9,7 +9,10 @@
 -- Create the tables here, then load into existing tables.
 -- =============================================================================
 
-USE ROLE DEV_DBT_ROLE2;
+-- Role: SYSADMIN owns the raw layer. The dbt development role is read-only on
+-- CORE_RAW by design, so it cannot run this script. Grants for it are at the
+-- bottom of the file.
+USE ROLE SYSADMIN;
 USE WAREHOUSE TRANSFORM_XS_WH;
 
 CREATE DATABASE IF NOT EXISTS CORE_RAW;
@@ -51,7 +54,7 @@ CREATE STAGE IF NOT EXISTS CORE_RAW.PUBLIC.RAW_CSV_STAGE
 -- CRM
 -- =============================================================================
 
-CREATE OR REPLACE TABLE CRM.SALES_REPS (
+CREATE TABLE IF NOT EXISTS CRM.SALES_REPS (
   SALES_REP_ID          VARCHAR,
   FIRST_NAME            VARCHAR,
   LAST_NAME             VARCHAR,
@@ -63,7 +66,7 @@ CREATE OR REPLACE TABLE CRM.SALES_REPS (
   _LOADED_AT            TIMESTAMP_TZ
 );
 
-CREATE OR REPLACE TABLE CRM.ACCOUNTS (
+CREATE TABLE IF NOT EXISTS CRM.ACCOUNTS (
   ACCOUNT_ID            VARCHAR,
   ACCOUNT_NAME          VARCHAR,
   WEBSITE_DOMAIN        VARCHAR,
@@ -81,7 +84,7 @@ CREATE OR REPLACE TABLE CRM.ACCOUNTS (
   _LOADED_AT            TIMESTAMP_TZ
 );
 
-CREATE OR REPLACE TABLE CRM.CONTACTS (
+CREATE TABLE IF NOT EXISTS CRM.CONTACTS (
   CONTACT_ID            VARCHAR,
   ACCOUNT_ID            VARCHAR,
   FIRST_NAME            VARCHAR,
@@ -95,7 +98,7 @@ CREATE OR REPLACE TABLE CRM.CONTACTS (
   _LOADED_AT            TIMESTAMP_TZ
 );
 
-CREATE OR REPLACE TABLE CRM.OPPORTUNITIES (
+CREATE TABLE IF NOT EXISTS CRM.OPPORTUNITIES (
   OPPORTUNITY_ID        VARCHAR,
   ACCOUNT_ID            VARCHAR,
   OWNER_SALES_REP_ID    VARCHAR,
@@ -115,7 +118,7 @@ CREATE OR REPLACE TABLE CRM.OPPORTUNITIES (
 -- BILLING
 -- =============================================================================
 
-CREATE OR REPLACE TABLE BILLING.CUSTOMERS (
+CREATE TABLE IF NOT EXISTS BILLING.CUSTOMERS (
   BILLING_CUSTOMER_ID   VARCHAR,
   CRM_ACCOUNT_ID        VARCHAR,
   CUSTOMER_NAME         VARCHAR,
@@ -130,7 +133,7 @@ CREATE OR REPLACE TABLE BILLING.CUSTOMERS (
   _LOADED_AT            TIMESTAMP_TZ
 );
 
-CREATE OR REPLACE TABLE BILLING.SUBSCRIPTIONS (
+CREATE TABLE IF NOT EXISTS BILLING.SUBSCRIPTIONS (
   SUBSCRIPTION_ID       VARCHAR,
   BILLING_CUSTOMER_ID   VARCHAR,
   PLAN_CODE             VARCHAR,
@@ -146,7 +149,7 @@ CREATE OR REPLACE TABLE BILLING.SUBSCRIPTIONS (
   _LOADED_AT            TIMESTAMP_TZ
 );
 
-CREATE OR REPLACE TABLE BILLING.INVOICES (
+CREATE TABLE IF NOT EXISTS BILLING.INVOICES (
   INVOICE_ID            VARCHAR,
   INVOICE_NUMBER        VARCHAR,
   BILLING_CUSTOMER_ID   VARCHAR,
@@ -165,7 +168,7 @@ CREATE OR REPLACE TABLE BILLING.INVOICES (
   _LOADED_AT            TIMESTAMP_TZ
 );
 
-CREATE OR REPLACE TABLE BILLING.INVOICE_LINES (
+CREATE TABLE IF NOT EXISTS BILLING.INVOICE_LINES (
   INVOICE_LINE_ID       VARCHAR,
   INVOICE_ID            VARCHAR,
   PLAN_CODE             VARCHAR,
@@ -180,7 +183,7 @@ CREATE OR REPLACE TABLE BILLING.INVOICE_LINES (
   _LOADED_AT            TIMESTAMP_TZ
 );
 
-CREATE OR REPLACE TABLE BILLING.PAYMENTS (
+CREATE TABLE IF NOT EXISTS BILLING.PAYMENTS (
   PAYMENT_ID            VARCHAR,
   INVOICE_ID            VARCHAR,
   BILLING_CUSTOMER_ID   VARCHAR,
@@ -194,7 +197,7 @@ CREATE OR REPLACE TABLE BILLING.PAYMENTS (
   _LOADED_AT            TIMESTAMP_TZ
 );
 
-CREATE OR REPLACE TABLE BILLING.REFUNDS (
+CREATE TABLE IF NOT EXISTS BILLING.REFUNDS (
   REFUND_ID             VARCHAR,
   PAYMENT_ID            VARCHAR,
   INVOICE_ID            VARCHAR,
@@ -215,7 +218,7 @@ CREATE OR REPLACE TABLE BILLING.REFUNDS (
 -- it at all. Staging applies TRY_PARSE_JSON.
 -- =============================================================================
 
-CREATE OR REPLACE TABLE PRODUCT.EVENTS (
+CREATE TABLE IF NOT EXISTS PRODUCT.EVENTS (
   EVENT_ID              VARCHAR,
   EVENT_NAME            VARCHAR,
   ACCOUNT_ID            VARCHAR,
@@ -232,7 +235,7 @@ CREATE OR REPLACE TABLE PRODUCT.EVENTS (
 -- ERP
 -- =============================================================================
 
-CREATE OR REPLACE TABLE ERP.COST_CENTERS (
+CREATE TABLE IF NOT EXISTS ERP.COST_CENTERS (
   COST_CENTER_ID        VARCHAR,
   COST_CENTER_NAME      VARCHAR,
   BUSINESS_UNIT         VARCHAR,
@@ -243,7 +246,7 @@ CREATE OR REPLACE TABLE ERP.COST_CENTERS (
   _LOADED_AT            TIMESTAMP_TZ
 );
 
-CREATE OR REPLACE TABLE ERP.GL_ENTRIES (
+CREATE TABLE IF NOT EXISTS ERP.GL_ENTRIES (
   GL_ENTRY_ID           VARCHAR,
   JOURNAL_ID            VARCHAR,
   LINE_NUMBER           NUMBER(10,0),
@@ -263,7 +266,7 @@ CREATE OR REPLACE TABLE ERP.GL_ENTRIES (
 -- MARKET
 -- =============================================================================
 
-CREATE OR REPLACE TABLE MARKET.FX_RATES (
+CREATE TABLE IF NOT EXISTS MARKET.FX_RATES (
   RATE_DATE             DATE,
   FROM_CURRENCY         VARCHAR(3),
   TO_CURRENCY           VARCHAR(3),
@@ -277,11 +280,11 @@ CREATE OR REPLACE TABLE MARKET.FX_RATES (
 -- Run the PUT commands from SnowSQL or the Snowflake CLI (the web UI cannot
 -- PUT local files), then the COPY INTO statements from anywhere.
 --
---   PUT file://setup/generated/crm/*.csv            @CORE_RAW.PUBLIC.RAW_CSV_STAGE/crm/     OVERWRITE=TRUE;
---   PUT file://setup/generated/billing/*.csv        @CORE_RAW.PUBLIC.RAW_CSV_STAGE/billing/ OVERWRITE=TRUE;
---   PUT file://setup/generated/product/*.csv        @CORE_RAW.PUBLIC.RAW_CSV_STAGE/product/ OVERWRITE=TRUE;
---   PUT file://setup/generated/erp/*.csv            @CORE_RAW.PUBLIC.RAW_CSV_STAGE/erp/     OVERWRITE=TRUE;
---   PUT file://setup/generated/market/*.csv         @CORE_RAW.PUBLIC.RAW_CSV_STAGE/market/  OVERWRITE=TRUE;
+--   PUT file://setup/generated/crm/*.csv            @CORE_RAW.PUBLIC.RAW_CSV_STAGE/crm/     OVERWRITE=TRUE AUTO_COMPRESS=FALSE;
+--   PUT file://setup/generated/billing/*.csv        @CORE_RAW.PUBLIC.RAW_CSV_STAGE/billing/ OVERWRITE=TRUE AUTO_COMPRESS=FALSE;
+--   PUT file://setup/generated/product/*.csv        @CORE_RAW.PUBLIC.RAW_CSV_STAGE/product/ OVERWRITE=TRUE AUTO_COMPRESS=FALSE;
+--   PUT file://setup/generated/erp/*.csv            @CORE_RAW.PUBLIC.RAW_CSV_STAGE/erp/     OVERWRITE=TRUE AUTO_COMPRESS=FALSE;
+--   PUT file://setup/generated/market/*.csv         @CORE_RAW.PUBLIC.RAW_CSV_STAGE/market/  OVERWRITE=TRUE AUTO_COMPRESS=FALSE;
 --
 -- TRUNCATE before each COPY. Snowflake's load history would otherwise skip a
 -- re-staged file with an unchanged name, and FORCE=TRUE without truncation
@@ -345,6 +348,52 @@ TRUNCATE TABLE MARKET.FX_RATES;
 COPY INTO MARKET.FX_RATES FROM @CORE_RAW.PUBLIC.RAW_CSV_STAGE/market/fx_rates.csv
   FILE_FORMAT = (FORMAT_NAME = CORE_RAW.PUBLIC.CSV_RAW_FF) ON_ERROR = ABORT_STATEMENT;
 */
+
+-- =============================================================================
+-- Rebuilding from scratch.
+--
+-- The CREATE statements above are IF NOT EXISTS, so this script is safe to
+-- rerun against a loaded database: it will not touch existing data. That also
+-- means a column change above will NOT be applied to an existing table. To
+-- genuinely rebuild, uncomment and run this block first, then rerun the script
+-- and reload every file.
+-- =============================================================================
+
+/*
+DROP TABLE IF EXISTS CRM.SALES_REPS;
+DROP TABLE IF EXISTS CRM.ACCOUNTS;
+DROP TABLE IF EXISTS CRM.CONTACTS;
+DROP TABLE IF EXISTS CRM.OPPORTUNITIES;
+DROP TABLE IF EXISTS BILLING.CUSTOMERS;
+DROP TABLE IF EXISTS BILLING.SUBSCRIPTIONS;
+DROP TABLE IF EXISTS BILLING.INVOICES;
+DROP TABLE IF EXISTS BILLING.INVOICE_LINES;
+DROP TABLE IF EXISTS BILLING.PAYMENTS;
+DROP TABLE IF EXISTS BILLING.REFUNDS;
+DROP TABLE IF EXISTS PRODUCT.EVENTS;
+DROP TABLE IF EXISTS ERP.COST_CENTERS;
+DROP TABLE IF EXISTS ERP.GL_ENTRIES;
+DROP TABLE IF EXISTS MARKET.FX_RATES;
+*/
+
+-- =============================================================================
+-- Grants for the dbt development role.
+--
+-- Set this to your actual dbt role before running. Note the ordering of the
+-- words: the connection in dbt was described as DEV_DBT_ROLE2 and the Snowflake
+-- account as DBT_DEV_ROLE2. Confirm which exists with SHOW ROLES before running
+-- this block, because GRANT on a nonexistent role fails loudly but GRANT to the
+-- wrong existing role fails silently in the sense that dbt still cannot read.
+-- =============================================================================
+
+SET DBT_ROLE = 'DBT_DEV_ROLE2';
+
+GRANT USAGE ON DATABASE CORE_RAW TO ROLE IDENTIFIER($DBT_ROLE);
+GRANT USAGE ON ALL SCHEMAS IN DATABASE CORE_RAW TO ROLE IDENTIFIER($DBT_ROLE);
+GRANT USAGE ON FUTURE SCHEMAS IN DATABASE CORE_RAW TO ROLE IDENTIFIER($DBT_ROLE);
+GRANT SELECT ON ALL TABLES IN DATABASE CORE_RAW TO ROLE IDENTIFIER($DBT_ROLE);
+GRANT SELECT ON FUTURE TABLES IN DATABASE CORE_RAW TO ROLE IDENTIFIER($DBT_ROLE);
+GRANT USAGE ON WAREHOUSE TRANSFORM_XS_WH TO ROLE IDENTIFIER($DBT_ROLE);
 
 -- =============================================================================
 -- Post-load verification. Compare against setup/manifest.csv.
