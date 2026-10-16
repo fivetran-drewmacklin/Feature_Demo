@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: int_product__daily_usage
+    description: Daily product activity aggregated to conformed customer grain.
+    columns:
+      - name: customer_id
+        description: Conformed customer identifier.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('int_sales__accounts'), field: customer_id}
+      - name: event_date
+        description: UTC calendar date of product activity.
+        data_tests: [not_null]
+      - name: event_count
+        description: Total customer events on the date.
+        data_tests: [not_null]
+      - name: late_event_count
+        description: Events received at least one day after occurrence.

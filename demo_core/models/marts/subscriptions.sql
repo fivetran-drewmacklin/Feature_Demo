@@ -1,0 +1,19 @@
+select
+    subscription_id,
+    customer_id,
+    billing_customer_id,
+    plan_code,
+    plan_name,
+    product_family,
+    billing_interval,
+    status,
+    started_at,
+    current_period_start,
+    current_period_end,
+    canceled_at,
+    quantity,
+    unit_price_cents,
+    currency,
+    updated_at,
+    _loaded_at
+from {{ ref('int_billing__subscriptions') }}

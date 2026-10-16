@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: invoices
+    description: Governed reconciled invoice and collection facts in source currency for downstream projects.
+    config:
+      contract:
+        enforced: true
+      tags: [public_interface]
+      meta:
+        data_product: core
+        data_classification: internal
+        grain: one_invoice
+    columns:
+      - {name: invoice_id, description: "{{ doc('invoice_id') }}", data_type: varchar, constraints: [{type: not_null}], data_tests: [unique, not_null]}
+      - {name: invoice_number, description: Human-readable invoice number assigned by the billing platform., data_type: varchar, constraints: [{type: not_null}]}
+      - {name: customer_id, description: "{{ doc('conformed_customer_id') }}", data_type: varchar, constraints: [{type: not_null}]}
+      - {name: billing_customer_id, description: "{{ doc('billing_customer_id') }}", data_type: varchar, constraints: [{type: not_null}]}
+      - {name: subscription_id, description: "{{ doc('subscription_id') }}", data_type: varchar}
+      - {name: status, description: Normalized invoice lifecycle status; rogue settled source values map to paid., data_type: varchar}
+      - {name: issue_date, description: Date the invoice was issued and the appropriate date for joining daily FX rates., data_type: date}
+      - {name: due_date, description: Contractual payment due date; validated not to precede the issue date., data_type: date}
+      - {name: paid_at, description: Settlement timestamp for paid invoices; void invoices do not require one., data_type: timestamp_tz}
+      - {name: currency, description: "{{ doc('currency_code') }}", data_type: varchar}
+      - {name: subtotal_cents, description: Subtotal stored on the invoice header in minor currency units., data_type: "number(18,0)"}
+      - {name: discount_cents, description: Discount magnitude stored on the invoice header in minor currency units., data_type: "number(18,0)"}
+      - {name: tax_cents, description: Tax stored on the invoice header in minor currency units., data_type: "number(18,0)"}
+      - {name: total_cents, description: Total stored on the invoice header in minor currency units., data_type: "number(18,0)"}
+      - {name: amount_due_cents, description: Outstanding accounts receivable bounded between zero and the invoice total., data_type: "number(18,0)"}
+      - {name: calculated_subtotal_cents, description: Subtotal recomputed from subscription and services lines., data_type: "number(38,0)"}
+      - {name: calculated_discount_cents, description: Absolute discount recomputed from credit lines., data_type: "number(38,0)"}
+      - {name: calculated_tax_cents, description: Tax recomputed from tax lines., data_type: "number(38,0)"}
+      - {name: calculated_total_cents, description: Recomputed subtotal less discount plus tax., data_type: "number(38,0)"}
+      - {name: successful_payment_cents, description: Sum of successful payments linked to the invoice., data_type: "number(38,0)"}
+      - {name: successful_refund_cents, description: Sum of successful refunds linked to the invoice., data_type: "number(38,0)"}
+      - {name: net_collections_cents, description: "{{ doc('net_collections_cents') }}", data_type: "number(38,0)"}
+      - {name: is_reconciled, description: "{{ doc('invoice_reconciliation_status') }}", data_type: boolean}
+      - {name: reconciliation_difference_cents, description: Stored invoice total less the total recomputed from clean lines., data_type: "number(38,0)"}
+      - {name: record_updated_at, description: "{{ doc('record_updated_at') }}", data_type: timestamp_tz}
+      - {name: _loaded_at, description: "{{ doc('raw_loaded_at') }}", data_type: timestamp_tz}
+

@@ -1,0 +1,16 @@
+version: 2
+
+seeds:
+  - name: chart_of_accounts
+    description: Governed finance classification for ERP general-ledger account codes.
+    columns:
+      - name: account_code
+        description: Stable general-ledger account code.
+      - name: account_name
+        description: Human-readable account name.
+      - name: account_type
+        description: Accounting classification used for reporting rollups.
+      - name: financial_statement
+        description: Primary statement where the account is reported.
+      - name: sign_convention
+        description: Natural debit or credit balance for the account.

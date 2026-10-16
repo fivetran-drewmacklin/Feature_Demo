@@ -1,0 +1,20 @@
+version: 2
+
+models:
+  - name: int_sales__contacts
+    description: Active CRM contacts mapped to conformed customers.
+    data_tests:
+      - expression_is_true:
+          arguments: {expression: "not is_primary or email is not null"}
+    columns:
+      - name: contact_id
+        description: Stable CRM contact identifier.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Conformed customer identifier.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('int_sales__accounts'), field: customer_id}
+      - name: canonical_crm_account_id
+        description: Canonical active CRM account for the contact.

@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: erp
+    description: ERP reference and general-ledger data used for finance operations.
+    database: CORE_RAW
+    schema: ERP
+    loader: R-generated CSV loaded to Snowflake
+    config:
+      loaded_at_field: _LOADED_AT
+      freshness:
+        warn_after: {count: 12, period: hour}
+        error_after: {count: 24, period: hour}
+    tables:
+      - name: cost_centers
+        identifier: COST_CENTERS
+        description: Effective-dated organizational cost center reference data.
+      - name: gl_entries
+        identifier: GL_ENTRIES
+        description: Append-only general-ledger journal lines.

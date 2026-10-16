@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: stg_billing__invoices
+    description: Cleaned invoice headers with rogue settled statuses normalized to paid.
+    columns:
+      - name: invoice_id
+        description: Stable invoice identifier.
+        data_tests: [unique, not_null]
+      - name: invoice_number
+        description: Human-readable invoice number.
+        data_tests: [unique, not_null]
+      - name: billing_customer_id
+        description: Billed customer.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_billing__customers'), field: billing_customer_id}
+      - name: subscription_id
+        description: Nullable originating subscription.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_billing__subscriptions'), field: subscription_id}
+      - name: status_raw
+        description: Original invoice status retained for anomaly auditing.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [draft, open, paid, void, uncollectible]}
+              config: {severity: warn, store_failures: true}
+      - name: status
+        description: Normalized invoice status.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [draft, open, paid, void, uncollectible]}
+      - name: currency
+        description: Uppercase invoice currency.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [USD, EUR, GBP, CAD, AUD]}

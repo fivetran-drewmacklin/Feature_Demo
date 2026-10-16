@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: int_sales__opportunities
+    description: Active CRM opportunities mapped to conformed customers.
+    data_tests:
+      - expression_is_true:
+          arguments: {expression: "amount_cents >= 0 and probability between 0 and 1"}
+      - expression_is_true:
+          arguments: {expression: "(stage = 'closed_won' and probability = 1) or (stage = 'closed_lost' and probability = 0) or stage not in ('closed_won', 'closed_lost')"}
+      - expression_is_true:
+          arguments: {expression: "close_date >= to_date(created_at)"}
+    columns:
+      - name: opportunity_id
+        description: Stable opportunity identifier.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Conformed customer identifier.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('int_sales__accounts'), field: customer_id}
+      - name: stage
+        description: Current normalized pipeline stage.

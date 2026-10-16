@@ -1,0 +1,114 @@
+name: demo_core
+version: 1.0.0
+config-version: 2
+profile: default
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - target
+  - dbt_packages
+
+vars:
+  sandbox: null
+
+quoting:
+  database: false
+  schema: false
+  identifier: false
+
+models:
+  demo_core:
+    +persist_docs:
+      relation: true
+      columns: true
+
+    staging:
+      +database: CORE_SLV
+      +materialized: view
+      +access: private
+      crm:
+        +schema: sales
+        +group: sales
+      billing:
+        +schema: billing
+        +group: billing
+      product:
+        +schema: product
+        +group: product
+      erp:
+        +schema: finance_operations
+        +group: finance_operations
+      market:
+        +schema: finance_operations
+        +group: finance_operations
+    intermediate:
+      +database: CORE_SLV
+      +materialized: table
+      +access: protected
+      sales:
+        +schema: sales
+        +group: sales
+      billing:
+        +schema: billing
+        +group: billing
+      product:
+        +schema: product
+        +group: product
+      finance_operations:
+        +schema: finance_operations
+        +group: finance_operations
+      core:
+        +schema: core
+        +group: core
+        int_core__country_codes:
+          +materialized: ephemeral
+    marts:
+      +database: CORE_SLV
+      +schema: core
+      +materialized: table
+      +group: core
+      +access: public
+
+seeds:
+  demo_core:
+    +database: CORE_CONFIG
+    +schema: reference
+    +quote_columns: false
+    country_codes:
+      +column_types:
+        raw_country: varchar
+        country_code: varchar(2)
+        country_name: varchar
+    plan_catalog:
+      +column_types:
+        plan_code: varchar
+        plan_name: varchar
+        billing_interval: varchar
+        list_price_cents: number(18,0)
+        currency: varchar(3)
+        product_family: varchar
+    chart_of_accounts:
+      +column_types:
+        account_code: varchar
+        account_name: varchar
+        account_type: varchar
+        financial_statement: varchar
+        sign_convention: varchar
+
+data_tests:
+  demo_core:
+    +database: CORE_CONFIG
+    +schema: audit
+
+info_schema:
+  version: 1
+
+query-comment:
+  comment: "demo_core | {{ node.unique_id if node is defined else 'operation' }}"
+  append: true

@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: stg_market__fx_rates
+    description: Cleaned daily currency-to-USD exchange rates.
+    columns:
+      - name: rate_date
+        description: Effective date of the exchange rate.
+        data_tests: [not_null]
+      - name: from_currency
+        description: Uppercase source currency.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [USD, EUR, GBP, CAD, AUD]}
+      - name: to_currency
+        description: Uppercase target currency, always USD in this source.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [USD]}
+      - name: rate
+        description: Positive conversion rate to USD.
+        data_tests: [not_null]

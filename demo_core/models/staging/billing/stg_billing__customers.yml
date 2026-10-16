@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: stg_billing__customers
+    description: Cleaned billing customers with normalized identity, contact, and country fields.
+    columns:
+      - name: billing_customer_id
+        description: Stable billing customer identifier.
+        data_tests: [unique, not_null]
+      - name: crm_account_id
+        description: Nullable source-provided CRM account link.
+        data_tests:
+          - relationships:
+              arguments: {to: ref('stg_crm__accounts'), field: account_id}
+      - name: billing_country_raw
+        description: Original free-text country retained for auditability.
+      - name: billing_country_code
+        description: ISO alpha-2 country code or UNKNOWN for an unmapped non-null value.
+      - name: currency
+        description: Uppercase customer currency.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [USD, EUR, GBP, CAD, AUD]}
+      - name: status
+        description: Normalized billing customer status.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [active, delinquent, closed]}

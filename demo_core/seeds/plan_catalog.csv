@@ -1,0 +1,6 @@
+plan_code,plan_name,billing_interval,list_price_cents,currency,product_family
+STARTER_MONTHLY,Starter Monthly,month,4900,USD,starter
+STARTER_ANNUAL,Starter Annual,year,49000,USD,starter
+GROWTH_MONTHLY,Growth Monthly,month,19900,USD,growth
+GROWTH_ANNUAL,Growth Annual,year,199000,USD,growth
+ENTERPRISE_ANNUAL,Enterprise Annual,year,960000,USD,enterprise

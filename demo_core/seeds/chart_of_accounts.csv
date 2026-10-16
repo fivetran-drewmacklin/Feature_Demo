@@ -1,0 +1,10 @@
+account_code,account_name,account_type,financial_statement,sign_convention
+1000,Cash,asset,balance_sheet,debit
+1100,Accounts Receivable,asset,balance_sheet,debit
+2000,Deferred Revenue,liability,balance_sheet,credit
+4000,Subscription Revenue,revenue,income_statement,credit
+4010,Services Revenue,revenue,income_statement,credit
+5000,Hosting Cost,cost_of_revenue,income_statement,debit
+6100,Sales and Marketing,operating_expense,income_statement,debit
+6200,Research and Development,operating_expense,income_statement,debit
+6300,General and Administrative,operating_expense,income_statement,debit

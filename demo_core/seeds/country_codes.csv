@@ -1,0 +1,40 @@
+raw_country,country_code,country_name
+United States,US,United States
+usa,US,United States
+U.S.A.,US,United States
+"US ",US,United States
+" united states",US,United States
+UNITED STATES,US,United States
+Untied States,US,United States
+Canada,CA,Canada
+CA,CA,Canada
+"canada ",CA,Canada
+Canadaa,CA,Canada
+United Kingdom,GB,United Kingdom
+UK,GB,United Kingdom
+U.K.,GB,United Kingdom
+Great Britain,GB,United Kingdom
+united kingdom,GB,United Kingdom
+Germany,DE,Germany
+DE,DE,Germany
+deutschland,DE,Germany
+Germny,DE,Germany
+France,FR,France
+FR,FR,France
+france,FR,France
+Australia,AU,Australia
+AUS,AU,Australia
+australia,AU,Australia
+Netherlands,NL,Netherlands
+NL,NL,Netherlands
+netherlands,NL,Netherlands
+Holland,NL,Netherlands
+Ireland,IE,Ireland
+IE,IE,Ireland
+eire,IE,Ireland
+Spain,ES,Spain
+ES,ES,Spain
+espana,ES,Spain
+Japan,JP,Japan
+JP,JP,Japan
+"japan ",JP,Japan

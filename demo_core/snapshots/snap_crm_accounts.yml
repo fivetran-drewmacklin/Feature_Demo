@@ -1,0 +1,14 @@
+version: 2
+
+snapshots:
+  - name: snap_crm_accounts
+    description: Type 2 history of cleaned CRM account records.
+    relation: ref('stg_crm__accounts')
+    config:
+      database: CORE_CONFIG
+      schema: snapshots
+      group: sales
+      strategy: timestamp
+      unique_key: account_id
+      updated_at: updated_at
+      hard_deletes: new_record

@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: stg_crm__contacts
+    description: Cleaned current-state CRM contacts with normalized names and emails.
+    columns:
+      - name: contact_id
+        description: Stable source identifier for the CRM contact.
+        data_tests:
+          - unique
+          - not_null
+      - name: account_id
+        description: CRM account associated with the contact.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_crm__accounts')
+                field: account_id
+      - name: first_name
+        description: Trimmed given name.
+      - name: last_name
+        description: Trimmed family name.
+      - name: email
+        description: Lowercased and trimmed email; nullable for non-primary contacts.
+      - name: job_title
+        description: Trimmed source job title.
+      - name: is_primary
+        description: Whether this is the account's primary active contact.
+      - name: created_at
+        description: Timestamp when the contact was created.
+      - name: updated_at
+        description: Timestamp of the latest source update.
+      - name: is_deleted
+        description: Whether the contact is soft deleted.
+      - name: _loaded_at
+        description: Timestamp when the source row landed in CORE_RAW.

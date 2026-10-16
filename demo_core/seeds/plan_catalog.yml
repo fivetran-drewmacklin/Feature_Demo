@@ -1,0 +1,18 @@
+version: 2
+
+seeds:
+  - name: plan_catalog
+    description: Governed commercial plan reference aligned with billing source plan codes.
+    columns:
+      - name: plan_code
+        description: Stable plan identifier used by subscriptions and invoice lines.
+      - name: plan_name
+        description: Human-readable plan name.
+      - name: billing_interval
+        description: Contract billing interval, either month or year.
+      - name: list_price_cents
+        description: Base list price in minor currency units.
+      - name: currency
+        description: Currency of the list price.
+      - name: product_family
+        description: Commercial product tier.

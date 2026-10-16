@@ -1,0 +1,63 @@
+version: 2
+
+models:
+  - name: int_billing__invoices
+    description: Merge-incremental invoices enriched with conformed customers, reconciliation, and net collections.
+    data_tests:
+      - expression_is_true:
+          arguments: {expression: "due_date >= issue_date"}
+      - expression_is_true:
+          arguments: {expression: "amount_due_cents between 0 and total_cents"}
+      - expression_is_true:
+          arguments: {expression: "(status = 'paid' and amount_due_cents = 0 and successful_payment_cents = total_cents and paid_at is not null) or (status = 'void' and amount_due_cents = 0) or status not in ('paid', 'void')"}
+      - expression_is_true:
+          arguments: {expression: "successful_refund_cents <= successful_payment_cents and net_collections_cents = successful_payment_cents - successful_refund_cents"}
+    columns:
+      - name: invoice_id
+        description: Stable invoice identifier and incremental merge key.
+        data_tests: [unique, not_null]
+      - name: customer_id
+        description: Conformed customer identifier.
+        data_tests: [not_null]
+      - name: billing_customer_id
+        description: Source billing customer identifier.
+        data_tests: [not_null]
+      - name: is_reconciled
+        description: Whether stored invoice amounts agree with recomputed line totals.
+        data_tests:
+          - accepted_values:
+              arguments: {values: [true]}
+              config: {severity: warn, store_failures: true}
+      - name: reconciliation_difference_cents
+        description: Stored total less the total recomputed from invoice lines.
+      - name: record_updated_at
+        description: Greatest update timestamp across header, lines, payments, and refunds.
+        data_tests: [not_null]
+
+unit_tests:
+  - name: test_invoice_reconciliation_and_net_collections
+    model: int_billing__invoices
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_billing__invoices')
+        rows:
+          - {invoice_id: INV-1, billing_customer_id: BILL-1, subtotal_cents: 1000, discount_cents: 100, tax_cents: 90, total_cents: 990, amount_due_cents: 0, status: paid, paid_at: "2025-01-10 00:00:00+00", issue_date: "2025-01-01", due_date: "2025-01-10", updated_at: "2025-01-10 00:00:00+00"}
+      - input: ref('stg_billing__invoice_lines')
+        rows:
+          - {invoice_id: INV-1, line_type: subscription, line_amount_cents: 1000, updated_at: "2025-01-01 00:00:00+00"}
+          - {invoice_id: INV-1, line_type: credit, line_amount_cents: -100, updated_at: "2025-01-01 00:00:00+00"}
+          - {invoice_id: INV-1, line_type: tax, line_amount_cents: 90, updated_at: "2025-01-01 00:00:00+00"}
+      - input: ref('stg_billing__payments')
+        rows:
+          - {invoice_id: INV-1, status: succeeded, amount_cents: 990, updated_at: "2025-01-10 00:00:00+00"}
+      - input: ref('stg_billing__refunds')
+        rows:
+          - {invoice_id: INV-1, status: succeeded, amount_cents: 100, updated_at: "2025-01-11 00:00:00+00"}
+      - input: ref('int_core__customer_matches')
+        rows:
+          - {billing_customer_id: BILL-1, customer_id: CUSTOMER-1}
+    expect:
+      rows:
+        - {invoice_id: INV-1, customer_id: CUSTOMER-1, calculated_subtotal_cents: 1000, calculated_discount_cents: 100, calculated_tax_cents: 90, calculated_total_cents: 990, successful_payment_cents: 990, successful_refund_cents: 100, net_collections_cents: 890, is_reconciled: true, reconciliation_difference_cents: 0}
