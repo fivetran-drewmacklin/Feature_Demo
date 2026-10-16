@@ -1,0 +1,26 @@
+version: 2
+
+sources:
+  - name: crm
+    description: CRM source data containing sales ownership, companies, contacts, and pipeline.
+    database: CORE_RAW
+    schema: CRM
+    loader: R-generated CSV loaded to Snowflake
+    config:
+      loaded_at_field: _LOADED_AT
+      freshness:
+        warn_after: {count: 6, period: hour}
+        error_after: {count: 12, period: hour}
+    tables:
+      - name: sales_reps
+        identifier: SALES_REPS
+        description: Current sales representative roster and reporting hierarchy.
+      - name: accounts
+        identifier: ACCOUNTS
+        description: Current CRM account records, including soft deletes and deliberate identity duplicates.
+      - name: contacts
+        identifier: CONTACTS
+        description: Current contacts associated with CRM accounts.
+      - name: opportunities
+        identifier: OPPORTUNITIES
+        description: Current sales opportunities and pipeline stages.

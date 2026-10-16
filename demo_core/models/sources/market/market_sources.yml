@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: market
+    description: External daily foreign-exchange rates used for USD conversion.
+    database: CORE_RAW
+    schema: MARKET
+    loader: R-generated CSV loaded to Snowflake
+    config:
+      loaded_at_field: _LOADED_AT
+      freshness:
+        warn_after: {count: 24, period: hour}
+        error_after: {count: 48, period: hour}
+    tables:
+      - name: fx_rates
+        identifier: FX_RATES
+        description: Daily currency-to-USD exchange rates with deliberate missing dates.

@@ -1,0 +1,12 @@
+version: 2
+
+seeds:
+  - name: country_codes
+    description: Accepted raw country values mapped to ISO alpha-2 codes and canonical names.
+    columns:
+      - name: raw_country
+        description: Exact source-system value before normalization.
+      - name: country_code
+        description: ISO 3166-1 alpha-2 country code.
+      - name: country_name
+        description: Canonical English country name.

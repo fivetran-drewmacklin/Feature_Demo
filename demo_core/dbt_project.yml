@@ -1,0 +1,53 @@
+name: demo_core
+version: 1.0.0
+config-version: 2
+profile: default
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - target
+  - dbt_packages
+
+vars:
+  sandbox: null
+
+quoting:
+  database: false
+  schema: false
+  identifier: false
+
+seeds:
+  demo_core:
+    +database: CORE_CONFIG
+    +schema: reference
+    +quote_columns: false
+    country_codes:
+      +column_types:
+        raw_country: varchar
+        country_code: varchar(2)
+        country_name: varchar
+    plan_catalog:
+      +column_types:
+        plan_code: varchar
+        plan_name: varchar
+        billing_interval: varchar
+        list_price_cents: number(18,0)
+        currency: varchar(3)
+        product_family: varchar
+    chart_of_accounts:
+      +column_types:
+        account_code: varchar
+        account_name: varchar
+        account_type: varchar
+        financial_statement: varchar
+        sign_convention: varchar
+
+query-comment:
+  comment: "demo_core | {{ node.unique_id if node is defined else 'operation' }}"
+  append: true

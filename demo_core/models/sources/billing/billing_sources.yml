@@ -1,0 +1,32 @@
+version: 2
+
+sources:
+  - name: billing
+    description: Billing platform source data for customers, subscriptions, invoices, payments, and refunds.
+    database: CORE_RAW
+    schema: BILLING
+    loader: R-generated CSV loaded to Snowflake
+    config:
+      loaded_at_field: _LOADED_AT
+      freshness:
+        warn_after: {count: 6, period: hour}
+        error_after: {count: 12, period: hour}
+    tables:
+      - name: customers
+        identifier: CUSTOMERS
+        description: Current billing customer records with a deliberately imperfect CRM account link.
+      - name: subscriptions
+        identifier: SUBSCRIPTIONS
+        description: Current subscription state and commercial plan attributes.
+      - name: invoices
+        identifier: INVOICES
+        description: Invoice headers with totals, payment status, and remaining balance.
+      - name: invoice_lines
+        identifier: INVOICE_LINES
+        description: Subscription, services, credit, and tax lines belonging to invoices.
+      - name: payments
+        identifier: PAYMENTS
+        description: Payment attempts and outcomes, including deliberate unmatched records.
+      - name: refunds
+        identifier: REFUNDS
+        description: Refund transactions linked to successful payments and invoices.

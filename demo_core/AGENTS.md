@@ -8,9 +8,11 @@
 
 - dbt project name: `demo_core`.
 - Logical output databases: `CORE_SLV` and `CORE_CONFIG`.
-- Physical databases are selected by target: `DEV_*` for `dev` and `ci`; `PRD_*` for `prod`.
+- Physical databases are selected by target: `DEV_*` for `DEV` and `TST`; `PRD_*` for `PRD`.
+
 - Development uses shared DEV schemas by default. Developers should normally pass `--vars '{sandbox: <name>}'` to build into `SANDBOX_<NAME>_<SCHEMA>`.
-- CI must preserve dbt Platform's temporary PR schema and must never write to PRD databases.
+- TST must preserve dbt Platform's temporary PR schema and must never write to PRD databases.
+
 - Sources live under `models/sources/<source>/`; output models mirror `models/core_slv/<business_schema>/`.
 - Source groups: `crm`, `billing`, `product`, `erp`, and `market`.
 - Ownership groups: `sales`, `billing`, `product`, `finance_operations`, and `core`.
@@ -37,10 +39,11 @@
 
 ## Progress log
 
-- Phase 1 — Architecture: approved. Microbatch deferred; raw-data defects originate in the R-generated CSVs; project-specific CI will use GitHub Actions path filtering and the dbt Administrative API.
+- Phase 1 — Architecture: approved. Microbatch deferred; raw-data defects originate in the R-generated CSVs; project-specific TST automation will use GitHub Actions path filtering and the dbt Administrative API.
 - Phase 2 — Snowflake setup: completed; `setup/snowflake_setup.sql` ran successfully and created the required Snowflake objects.
-- Phase 3 — Raw data specification: completed in `setup/raw_data_spec.md`; R generator implementation and data loading remain external steps.
-- Phase 4 — Foundation: not started.
+- Phase 3 — Raw data specification and load: completed; the standard dataset is loaded in `CORE_RAW`, warehouse invariants passed, and source timestamps were rebaselined.
+- Phase 4 — Foundation: completed; `demo_core` is the configured project subdirectory, DEV/TST/PRD naming macros are enforced, all 14 raw sources have freshness rules, and three typed reference seeds are loaded in DEV.
+
 - Phase 5 — Staging: not started.
 - Phase 6 — Business models: not started.
 - Phase 7 — Quality: not started.

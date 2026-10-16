@@ -16,7 +16,8 @@ Both projects target Snowflake and dbt Platform's Latest release track (dbt v2).
 - dbt cleans and models the raw data; the standard generated dataset may produce intentional warning-level tests but must allow production builds to succeed.
 - Optional generator scenarios may produce build-breaking data for failure demonstrations.
 - `demo_finance` consumes only public, contracted `demo_core` models through cross-project `ref()` calls in dbt Mesh.
-- Logical database names in dbt config omit environment prefixes. Custom database naming maps them to `DEV_*` for `dev` and `ci`, and `PRD_*` for `prod`.
+- Logical database names in dbt config omit environment prefixes. Custom database naming maps them to `DEV_*` for `DEV` and `TST`, and `PRD_*` for `PRD`.
+
 - Model folders mirror logical Snowflake destinations, for example `models/core_slv/sales/`.
 
 ## Snowflake environments
@@ -26,15 +27,16 @@ Both projects target Snowflake and dbt Platform's Latest release track (dbt v2).
 - Core config: `DEV_CORE_CONFIG`, `PRD_CORE_CONFIG`.
 - Finance outputs: `DEV_FINANCE_GLD`, `PRD_FINANCE_GLD`.
 - Finance config: `DEV_FINANCE_CONFIG`, `PRD_FINANCE_CONFIG`.
-- Targets are exactly `dev`, `ci`, and `prod`.
+- Targets are exactly `DEV`, `TST`, and `PRD`.
 - dbt must never run as `ACCOUNTADMIN`.
 
-## CI and deployment
+## TST automation and deployment
 
-- CI builds temporary schemas in DEV databases using `DBT_DEV_ROLE2` and defers to Production.
-- Native dbt Platform monorepo CI triggers every attached project and has no project-subdirectory path filter.
-- Use GitHub Actions path filters plus the dbt Administrative API so changes under `demo_core/**` trigger only core CI, changes under `demo_finance/**` trigger only finance CI, and shared/setup changes trigger both when appropriate.
-- Production deployment of `demo_finance` must follow a successful `demo_core` production run so current public-model metadata is available.
+- TST automation builds temporary schemas in DEV databases using `DBT_DEV_ROLE2` and defers to PRD.
+- Native dbt Platform monorepo automation triggers every attached project and has no project-subdirectory path filter.
+- Use GitHub Actions path filters plus the dbt Administrative API so changes under `demo_core/**` trigger only core TST, changes under `demo_finance/**` trigger only finance TST, and shared/setup changes trigger both when appropriate.
+- PRD deployment of `demo_finance` must follow a successful `demo_core` PRD run so current public-model metadata is available.
+
 
 ## Shared conventions
 
