@@ -60,3 +60,19 @@ dbt parse --no-partial-parse
 ```
 
 On dbt Platform, Catalog is populated automatically by v2 Stable job runs. Model and column descriptions are also persisted to supported Snowflake relations as comments.
+
+
+## Deployment, state, and CI
+
+The `Core Production` dbt Platform environment builds `main` with target `PRD`. A successful production build publishes the manifest used as the deferred baseline for downstream Mesh metadata and Slim CI. Production jobs must complete successfully before dependent `demo_finance` production jobs run.
+
+The `Core CI` staging environment uses target `TST`, `DBT_DEV_ROLE2`, and a pull-request-specific schema in the DEV databases. Its validated command sequence is:
+
+```text
+dbt clone --select state:modified+,config.materialized:incremental,state:old
+dbt build --select state:modified+
+```
+
+The clone step exercises existing incremental models through their incremental path; the build selects modified resources and downstream dependents while deferring unselected parents to the latest successful production run. SQL linting runs first and stops the job on error. Production manifests and run artifacts must be retained long enough for open pull requests and downstream project resolution.
+
+Native pull-request cleanup removes the temporary schema from the connection's default `DEV_CORE_SLV` database. Because this project also writes test failures and configuration resources to `DEV_CORE_CONFIG`, the matching temporary schema there requires explicit cleanup after a pull request closes.
