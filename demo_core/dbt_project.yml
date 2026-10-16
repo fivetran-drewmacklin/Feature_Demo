@@ -3,6 +3,10 @@ version: 1.0.0
 config-version: 2
 profile: default
 
+dbt-cloud:
+  project-id: 70403104003155
+
+
 model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
