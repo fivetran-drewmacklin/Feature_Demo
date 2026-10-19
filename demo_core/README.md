@@ -66,7 +66,7 @@ On dbt Platform, Catalog is populated automatically by v2 Stable job runs. Model
 
 The `Core Production` dbt Platform environment builds `main` with target `PRD`. A successful production build publishes the manifest used as the deferred baseline for downstream Mesh metadata and Slim CI. Production jobs must complete successfully before dependent `demo_finance` production jobs run.
 
-The `Core CI` staging environment uses target `TST`, `DBT_DEV_ROLE2`, and a pull-request-specific schema in the DEV databases. Its validated command sequence is:
+The `Core CI` General environment uses target `TST`, `DBT_DEV_ROLE2`, and a pull-request-specific schema in the DEV databases. Keep this PR-only environment classified as General: marking it Staging makes Mesh look for a stable Staging publication, while CI publishes temporary PR relations that are deleted during cleanup. If a true Staging environment is introduced later, publish it first with a successful main-branch deployment job before downstream projects use it. The validated PR CI command sequence is:
 
 ```text
 dbt clone --select state:modified+,config.materialized:incremental,state:old
