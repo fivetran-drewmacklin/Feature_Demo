@@ -6,6 +6,9 @@ models:
       Governed one-invoice finance fact with source-currency audit fields and
       issue-date USD valuation for invoicing, receivables, payments, refunds,
       and net collections.
+    semantic_model:
+      enabled: true
+    agg_time_dimension: issue_date
     config:
       contract:
         enforced: true
@@ -20,20 +23,78 @@ models:
             column_name: status
             values: [draft, open, paid, uncollectible, void]
     columns:
-      - {name: invoice_id, description: Stable invoice identifier and model grain., data_type: varchar, constraints: [{type: not_null}], data_tests: [unique, not_null]}
+      - name: invoice_id
+        description: Stable invoice identifier and model grain.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique, not_null]
+        entity:
+          type: primary
+          name: invoice
       - {name: invoice_number, description: Human-readable billing-platform invoice number., data_type: varchar}
-      - {name: customer_id, description: Conformed customer identifier from demo_core., data_type: varchar, constraints: [{type: not_null}], data_tests: [not_null]}
+      - name: customer_id
+        description: Conformed customer identifier from demo_core.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [not_null]
+        entity:
+          type: foreign
+          name: customer
       - {name: billing_customer_id, description: Billing-platform customer identifier., data_type: varchar}
-      - {name: subscription_id, description: Associated subscription when the invoice is subscription-backed., data_type: varchar}
-      - {name: status, description: Normalized invoice lifecycle status., data_type: varchar, constraints: [{type: not_null}], data_tests: [not_null]}
-      - {name: issue_date, description: Invoice issue date used to select the reporting FX rate., data_type: date, constraints: [{type: not_null}], data_tests: [not_null]}
-      - {name: due_date, description: Contractual payment due date., data_type: date}
-      - {name: paid_at, description: Settlement timestamp for paid invoices., data_type: timestamp_tz}
-      - {name: source_currency, description: ISO currency code of the source invoice amounts., data_type: varchar, constraints: [{type: not_null}], data_tests: [not_null]}
+      - name: subscription_id
+        description: Associated subscription when the invoice is subscription-backed.
+        data_type: varchar
+        entity:
+          type: foreign
+          name: subscription
+      - name: status
+        description: Normalized invoice lifecycle status.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [not_null]
+        dimension:
+          type: categorical
+      - name: issue_date
+        description: Invoice issue date used to select the reporting FX rate.
+        data_type: date
+        constraints: [{type: not_null}]
+        data_tests: [not_null]
+        granularity: day
+        dimension:
+          type: time
+      - name: due_date
+        description: Contractual payment due date.
+        data_type: date
+        granularity: day
+        dimension:
+          type: time
+      - name: paid_at
+        description: Settlement timestamp for paid invoices.
+        data_type: timestamp_tz
+        granularity: day
+        dimension:
+          type: time
+      - name: source_currency
+        description: ISO currency code of the source invoice amounts.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [not_null]
+        dimension:
+          type: categorical
       - {name: fx_rate_to_usd, description: Issue-date source-currency-to-USD rate; USD invoices use 1., data_type: "number(18,8)", constraints: [{type: not_null}], data_tests: [not_null]}
       - {name: fx_rate_source_date, description: Date of the exact or carried-forward FX observation; issue date for USD., data_type: date, constraints: [{type: not_null}], data_tests: [not_null]}
-      - {name: used_prior_fx_rate, description: Whether a prior available FX observation was carried forward., data_type: boolean, constraints: [{type: not_null}]}
-      - {name: fx_provider, description: FX provider or identity for USD invoices., data_type: varchar, constraints: [{type: not_null}]}
+      - name: used_prior_fx_rate
+        description: Whether a prior available FX observation was carried forward.
+        data_type: boolean
+        constraints: [{type: not_null}]
+        dimension:
+          type: categorical
+      - name: fx_provider
+        description: FX provider or identity for USD invoices.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        dimension:
+          type: categorical
       - {name: subtotal_cents, description: Source invoice subtotal in minor currency units., data_type: "number(18,0)"}
       - {name: discount_cents, description: Source invoice discount in minor currency units., data_type: "number(18,0)"}
       - {name: tax_cents, description: Source invoice tax in minor currency units., data_type: "number(18,0)"}
@@ -56,10 +117,56 @@ models:
       - {name: successful_payment_amount_usd, description: Successful payments converted to USD at the governed issue-date rate., data_type: "number(38,2)"}
       - {name: refund_amount_usd, description: Successful refunds converted to USD at the governed issue-date rate., data_type: "number(38,2)"}
       - {name: net_collections_amount_usd, description: Net collections converted to USD at the governed issue-date rate., data_type: "number(38,2)"}
-      - {name: is_reconciled, description: Whether the source invoice total agrees with its recomputed line total., data_type: boolean}
+      - name: is_reconciled
+        description: Whether the source invoice total agrees with its recomputed line total.
+        data_type: boolean
+        dimension:
+          type: categorical
       - {name: reconciliation_difference_cents, description: Source total less recomputed total in minor currency units., data_type: "number(38,0)"}
       - {name: record_updated_at, description: Latest business-record update timestamp used by the upstream incremental model., data_type: timestamp_tz}
       - {name: _loaded_at, description: Latest contributing raw ingestion timestamp., data_type: timestamp_tz}
+    metrics:
+      - name: invoice_count
+        description: Count of invoices issued.
+        label: Invoice Count
+        type: simple
+        agg: count
+        expr: 1
+      - name: total_invoice_amount_usd
+        description: Total invoiced amount converted to USD at each invoice's governed issue-date rate.
+        label: Total Invoice Amount (USD)
+        type: simple
+        agg: sum
+        expr: invoice_amount_usd
+        fill_nulls_with: 0
+      - name: total_outstanding_receivable_amount_usd
+        description: Total unpaid invoice balance converted to USD at each invoice's governed issue-date rate.
+        label: Total Outstanding Receivables (USD)
+        type: simple
+        agg: sum
+        expr: outstanding_receivable_amount_usd
+        fill_nulls_with: 0
+      - name: total_successful_payment_amount_usd
+        description: Total successful payments converted to USD at each invoice's governed issue-date rate.
+        label: Total Successful Payments (USD)
+        type: simple
+        agg: sum
+        expr: successful_payment_amount_usd
+        fill_nulls_with: 0
+      - name: total_refund_amount_usd
+        description: Total successful refunds converted to USD at each invoice's governed issue-date rate.
+        label: Total Refunds (USD)
+        type: simple
+        agg: sum
+        expr: refund_amount_usd
+        fill_nulls_with: 0
+      - name: total_net_collections_amount_usd
+        description: Total successful payments less successful refunds converted to USD at each invoice's governed issue-date rate.
+        label: Total Net Collections (USD)
+        type: simple
+        agg: sum
+        expr: net_collections_amount_usd
+        fill_nulls_with: 0
 
 unit_tests:
   - name: invoice_financials_converts_source_amounts_to_usd

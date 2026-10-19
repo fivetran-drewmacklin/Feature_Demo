@@ -17,6 +17,8 @@ Allowed upstream interfaces are `customers`, `subscriptions`, `invoices`, `fx_ra
 
 `invoice_financials` is the first public finance mart. It preserves one row per core invoice, retains source-currency cents and reconciliation fields for auditability, and publishes source-currency and issue-date USD amounts for invoice totals, outstanding receivables, successful payments, refunds, and net collections. USD invoices use an identity rate; non-USD invoices retain the governed FX observation date, provider, and prior-rate fallback flag from `demo_core.fx_rates`.
 
+The mart is enabled as a latest-spec semantic model with invoice, customer, and subscription entities; issue, due, and paid time dimensions; lifecycle and FX dimensions; and governed metrics for invoice count, total invoiced, outstanding receivables, successful payments, refunds, and net collections in USD. `time_spine_daily` provides the protected daily calendar required by MetricFlow.
+
 ## Environment mapping
 
 Logical databases are mapped by target:
