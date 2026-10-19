@@ -34,3 +34,20 @@
 - Phase 1 — Mesh foundation: completed. `demo_core` resolves from its Production environment after the PR-only `Core CI` environment was classified as General instead of Staging; `dbt deps` and a cold parse succeed on dbt v2 Stable 2.0.8.
 - Phase 2 — First finance mart: completed. Public contracted `invoice_financials` preserves one-invoice grain from `demo_core.invoices`, joins governed issue-date rates from `demo_core.fx_rates`, retains source audit fields and FX provenance, and publishes source-currency and USD amounts for invoicing, receivables, payments, refunds, and net collections. Dependency-aware DEV build, unit conversion scenarios, structural tests, status checks, and cross-project grain reconciliation pass.
 - Phase 3 — Semantic Layer foundation: completed. `invoice_financials` uses the latest nested semantic-model spec with invoice, customer, and subscription entities; issue, due, and paid time dimensions; lifecycle and FX dimensions; and six governed simple metrics. Protected `time_spine_daily` covers 2020-01-01 through 2035-12-31. Cold parse, spine build/tests, `dbt sl validate`, and an end-to-end yearly metric query pass.
+
+
+## Physical schema lifecycle
+
+- Keep active public finance marts in domain schemas under `FINANCE_GLD`; currently only `RECEIVABLES` is active.
+- Keep shared Semantic Layer infrastructure such as `time_spine_daily` under `FINANCE_CONFIG.SEMANTIC`.
+- Do not pre-create MRR, revenue, or retention schemas before their first models are implemented.
+- After a model moves schemas and the replacement is deployed successfully, remove its orphaned relation explicitly; dbt does not drop the old relation.
+- Preserve Snowflake's automatic `PUBLIC` schemas and manage their privileges instead of dropping them.
+
+## Deployment baseline
+
+- Finance CI is a General environment with target `TST`, role `DBT_DEV_ROLE2`, default database `DEV_FINANCE_GLD`, and deferral to `Finance Production`.
+- Finance Production uses target `PRD`, role `DBT_PRD_ROLE`, and the `main` branch.
+- Native PR webhooks run both monorepo projects for this demo; do not classify a PR-only environment as Staging.
+- Run Finance Production after successful Core Production when core public interfaces or shared setup change.
+- Production and CI jobs should have owners, failure notifications, and bounded timeouts; 15 minutes is the current Finance baseline.

@@ -1,0 +1,9 @@
+version: 2
+
+checks:
+  - name: public_models_owned_by_finance
+    description: Fails when a public Finance interface is not owned by the finance group.
+  - name: public_models_enforce_contracts
+    description: Fails when a public Finance interface does not enforce its contract.
+  - name: finance_models_use_approved_materializations
+    description: Fails when public or protected Finance models use an unapproved materialization.

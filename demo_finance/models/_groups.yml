@@ -1,0 +1,10 @@
+version: 2
+
+groups:
+  - name: finance
+    description: Finance marts, business logic, and governed finance metrics owned by Finance Analytics Engineering.
+    owner:
+      name: Finance Analytics Engineering
+    config:
+      meta:
+        data_owner: Finance Analytics Engineering

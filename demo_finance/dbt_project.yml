@@ -28,6 +28,7 @@ quoting:
 
 models:
   demo_finance:
+    +group: finance
     +persist_docs:
       relation: true
       columns: true
@@ -36,27 +37,16 @@ models:
       +database: FINANCE_GLD
       +materialized: table
       +access: protected
-      mrr:
-        +schema: mrr
-      revenue:
-        +schema: revenue
-      receivables:
-        +schema: receivables
-      retention:
-        +schema: retention
+      semantic:
+        +database: FINANCE_CONFIG
+        +schema: semantic
 
     marts:
       +database: FINANCE_GLD
       +materialized: table
       +access: public
-      mrr:
-        +schema: mrr
-      revenue:
-        +schema: revenue
       receivables:
         +schema: receivables
-      retention:
-        +schema: retention
 
 data_tests:
   demo_finance:

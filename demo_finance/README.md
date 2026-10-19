@@ -30,3 +30,22 @@ Logical databases are mapped by target:
 | `PRD` | `PRD_FINANCE_GLD` | `PRD_FINANCE_CONFIG` |
 
 TST preserves dbt Platform's pull-request-specific schema. Production finance deployment must run after a successful `demo_core` production deployment.
+
+
+## Physical layout
+
+Active Finance relations are intentionally limited to:
+
+- `FINANCE_GLD.RECEIVABLES.INVOICE_FINANCIALS` for the public receivables mart.
+- `FINANCE_CONFIG.SEMANTIC.TIME_SPINE_DAILY` for shared Semantic Layer infrastructure.
+- `FINANCE_CONFIG.AUDIT` for persisted dbt test results.
+
+Environment-aware database naming maps these logical databases to `DEV_*` for `DEV` and `TST`, and `PRD_*` for `PRD`. Empty MRR, revenue, and retention schemas are not pre-created; add each domain config and schema with its first implemented model.
+
+After deploying the time-spine move in both environments, run `setup/cleanup_finance_schemas.sql` with an authorized Snowflake operator. The script uses restricted drops so unexpected objects block cleanup instead of being deleted.
+
+## Deployment controls
+
+Finance CI must be attached to the General `Finance CI` environment, use target `TST`, use `DBT_DEV_ROLE2`, write to `DEV_FINANCE_GLD`, and defer to `Finance Production`. The CI job runs clone, state-modified build, Semantic Layer validation, and SQL linting with lint failures treated as errors.
+
+Because both dbt projects share one repository, native pull-request CI triggers both projects for any pull request. This is an accepted demo tradeoff. Production jobs remain manual unless an explicit orchestration trigger is configured; Finance Production must follow a successful Core Production run for core or shared changes.
