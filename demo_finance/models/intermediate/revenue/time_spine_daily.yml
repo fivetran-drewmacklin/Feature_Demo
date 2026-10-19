@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: time_spine_daily
+    description: Daily Semantic Layer time spine covering 2020-01-01 through 2035-12-31.
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        description: Calendar date at daily grain.
+        data_type: date
+        granularity: day
+        data_tests:
+          - unique
+          - not_null
