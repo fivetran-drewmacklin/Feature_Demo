@@ -31,4 +31,5 @@
 
 ## Progress
 
-- Phase 1 — Mesh foundation: in progress.
+- Phase 1 — Mesh foundation: completed. `demo_core` resolves from its Production environment after the PR-only `Core CI` environment was classified as General instead of Staging; `dbt deps` and a cold parse succeed on dbt v2 Stable 2.0.8.
+- Phase 2 — First finance mart: completed. Public contracted `invoice_financials` preserves one-invoice grain from `demo_core.invoices`, joins governed issue-date rates from `demo_core.fx_rates`, retains source audit fields and FX provenance, and publishes source-currency and USD amounts for invoicing, receivables, payments, refunds, and net collections. Dependency-aware DEV build, unit conversion scenarios, structural tests, status checks, and cross-project grain reconciliation pass.
