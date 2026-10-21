@@ -75,11 +75,9 @@ Run the three verification queries at the bottom of `raw_table_ddl.sql`:
 - Unparseable `PROPERTIES`, which must be zero in the standard scenario. Any
   nonzero result means the quote setting was wrong.
 
-Then run `setup/rebaseline_loaded_at.sql`. The generator stamps `_LOADED_AT`
-relative to its as-of date of 2026-01-01, so without this every source looks
-stale and MARKET throws a freshness error instead of the intended warning. The
-script computes the shift, validates it, applies it, and prints the resulting
-freshness state per source.
+Then run `setup/rebaseline_loaded_at.sql`. The generator uses 2026-01-01 as a deterministic fixture anchor. The script independently moves business `DATE` fields, business `TIMESTAMP_TZ` fields—including invoice `paid_at`—and `_LOADED_AT`. Separate anchors let it repair data where an earlier run moved only `_LOADED_AT`, while preserving relative durations, ordering invariants, and intended source freshness gaps. The script prints freshness and business-date checks after applying the shifts.
+
+
 
 ## Re-loading
 

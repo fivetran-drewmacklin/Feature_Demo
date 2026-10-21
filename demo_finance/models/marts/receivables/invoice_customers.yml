@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: invoice_customers
+    description: Customer attributes used to analyze governed invoice metrics by readable customer name.
+    semantic_model:
+      enabled: true
+    agg_time_dimension: updated_at
+    config:
+      contract:
+        enforced: true
+      tags: [public_interface, finance]
+      meta:
+        data_product: finance
+        data_classification: internal
+        grain: one_customer
+    columns:
+      - name: customer_id
+        description: Conformed customer identifier from demo_core and the join key for invoice metrics.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [unique, not_null]
+        entity:
+          type: primary
+          name: customer
+      - name: customer_name
+        description: Best available current company name for consumption and reporting.
+        data_type: varchar
+        constraints: [{type: not_null}]
+        data_tests: [not_null]
+        dimension:
+          type: categorical
+      - name: updated_at
+        description: Latest known customer update timestamp.
+        data_type: timestamp_tz
+        granularity: day
+        dimension:
+          type: time

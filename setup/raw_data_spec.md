@@ -22,7 +22,7 @@ The standard scenario contains realistic defects and warning-level test failures
 5. `setup/anomaly_manifest.csv` — every deliberately injected anomaly: scenario, table, technical key, anomaly type, expected dbt handling, expected severity. Carries the same run metadata.
 6. `setup/raw_table_ddl.sql` — Snowflake DDL for all 14 raw tables with explicit types, plus a named CSV file format for loading.
 7. `setup/load_raw_data.md` — instructions for loading the CSVs through the Snowsight UI.
-8. `setup/rebaseline_loaded_at.sql` — shifts every `_loaded_at` by a signed interval so source freshness behaves as designed on any demo date.
+8. `setup/rebaseline_loaded_at.sql` — shifts the complete fixture timeline so business dates appear current while preserving relative intervals, timestamp ordering, and source freshness ages.
 9. `setup/incremental_demo.sql` — reversible SQL that mutates loaded tables to exercise incremental models and snapshots.
 10. A validation summary printed by the R script.
 
@@ -34,7 +34,7 @@ Command-line arguments and defaults:
 
 - `--scenario standard` — `clean`, `standard`, or `broken`.
 - `--seed 20250301` — output is reproducible for the same seed, scenario, scale, and as-of date.
-- `--as_of_date 2026-01-01` — fixed historical default, interpreted as UTC. Deliberately in the past so `_loaded_at` is never in the future relative to a demo.
+- `--as_of_date 2026-01-01` — deterministic historical fixture anchor, interpreted as UTC. Run `setup/rebaseline_loaded_at.sql` after loading to move the complete business and ingestion timeline to the current demo date.
 - `--history_days 730`.
 - `--scale 1` — volume multiplier. Anomaly counts scale proportionally, with a floor of one of each.
 - `--output_dir setup/generated`.
@@ -63,7 +63,9 @@ Scenario behavior:
 | MARKET | 30 hours | Freshness warning under `warn_after: 24 hours`, `error_after: 48 hours` |
 
 - The broken scenario makes MARKET more than 72 hours stale.
-- Freshness is evaluated at dbt run time, not generation time, so these offsets are only correct on the generation date. `rebaseline_loaded_at.sql` restores them on any later date and preserves the relative gaps above.
+- Freshness is evaluated at dbt run time, not generation time. `rebaseline_loaded_at.sql` independently shifts DATE business fields, TIMESTAMP_TZ business fields, and ingestion timestamps. Separate anchors let it repair fixtures where an earlier run moved only `_loaded_at`, while preserving source-age gaps and ordering invariants.
+
+
 - Timestamps are ISO-8601 with an explicit UTC offset. Product event timestamps preserve mixed offsets.
 
 ## Load strategies

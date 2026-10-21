@@ -33,7 +33,8 @@
 
 - Phase 1 — Mesh foundation: completed. `demo_core` resolves from its Production environment after the PR-only `Core CI` environment was classified as General instead of Staging; `dbt deps` and a cold parse succeed on dbt v2 Stable 2.0.8.
 - Phase 2 — First finance mart: completed. Public contracted `invoice_financials` preserves one-invoice grain from `demo_core.invoices`, joins governed issue-date rates from `demo_core.fx_rates`, retains source audit fields and FX provenance, and publishes source-currency and USD amounts for invoicing, receivables, payments, refunds, and net collections. Dependency-aware DEV build, unit conversion scenarios, structural tests, status checks, and cross-project grain reconciliation pass.
-- Phase 3 — Semantic Layer foundation: completed. `invoice_financials` uses the latest nested semantic-model spec with invoice, customer, and subscription entities; issue, due, and paid time dimensions; lifecycle and FX dimensions; and six governed simple metrics. Protected `time_spine_daily` covers 2020-01-01 through 2035-12-31. Cold parse, spine build/tests, `dbt sl validate`, and an end-to-end yearly metric query pass.
+- Phase 3 — Semantic Layer foundation: completed. `invoice_financials` uses the latest nested semantic-model spec with invoice, customer, and subscription entities; issue, due, and paid time dimensions; lifecycle and FX dimensions; and six governed simple metrics. `invoice_customers` provides the primary customer entity and readable `customer_name` dimension for analyzing invoice metrics without exposing hashed identifiers to consumers. Protected `time_spine_daily` covers 2020-01-01 through 2035-12-31. Cold parse, model builds/tests, `dbt sl validate`, and end-to-end metric queries pass.
+
 
 
 ## Physical schema lifecycle
