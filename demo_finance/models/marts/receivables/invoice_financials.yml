@@ -132,6 +132,16 @@ models:
         type: simple
         agg: count
         expr: 1
+      - name: revenue
+        description: Total invoice amount in USD for invoices whose normalized lifecycle status is paid.
+        label: Revenue
+        type: simple
+        agg: sum
+        expr: invoice_amount_usd
+        fill_nulls_with: 0
+        filter: |
+          {{ Dimension('invoice__status') }} = 'paid'
+
       - name: total_invoice_amount_usd
         description: Total invoiced amount converted to USD at each invoice's governed issue-date rate.
         label: Total Invoice Amount (USD)
