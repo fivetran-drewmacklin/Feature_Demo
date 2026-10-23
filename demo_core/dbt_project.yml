@@ -78,6 +78,8 @@ models:
       +materialized: table
       +group: core
       +access: public
+      +state:
+        lag_tolerance: "{{ '4h' if target.name == 'PRD' else '24h' }}"
 
 seeds:
   demo_core:
