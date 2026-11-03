@@ -12,6 +12,107 @@ Technical dbt engineer, technical BI engineer, and VP of Engineering.
 | 15:00–22:00 | Wizard | Add a governed metric and semantic dimension with project context and validation. |
 | 22:00–24:00 | Wrap and questions | Shared data, explicit choices, faster safe changes. |
 
+## Numbered live-demo checklist — presenter view
+
+Preparation status: the presenter reports that both Core and Finance PRD rebuilds are complete. Connector refresh, Sheets/Claude agreement, and visible column-level lineage remain presenter checks. Keep PRD on `main` throughout.
+
+Use October 2026 only if confirmed during preflight; otherwise substitute the same populated period in Sheets and both Claude prompts. These connector queries use deployed data; the Wizard enhancement at the end uses DEV.
+
+1. **Show the Google Sheet (about 2 minutes).** Start with **Revenue Official** (`revenue_official`) for October 2026. Keep **Sales Approved Revenue** (`sales_approved_revenue`) available beside it, using the same issue month and filters. Say: “These are approved definitions over the same invoices, with explicit ownership and FX policy.”
+
+2. **Show Claude MCP agreeing with the official definition and Sheet (about 2 minutes).** Ask it to discover the governed definition before querying. Compare its monthly total with the same Sheet cell; a definition match and a number match are separate checks.
+
+   ```text
+   Discover revenue_official in the dbt Semantic Layer. Explain its owner,
+   paid-invoice population, tax treatment, issue-date time basis, and FX policy.
+   Query its total for October 2026 (2026-10-01 inclusive to 2026-11-01 exclusive),
+   using the same filters as my Google Sheet. Use the governed metric rather
+   than writing a new revenue calculation. State the environment queried.
+   ```
+
+3. **Ask Claude for the Sales team's approved definition (about 2 minutes).** Reveal/compare Sales Approved Revenue in Sheets for the identical scope.
+
+   ```text
+   Discover sales_approved_revenue and explain how Sales' approved definition
+   differs from revenue_official. Query both governed metrics for the same
+   October 2026 period and filters as before. Explain the FX valuation
+   difference, who owns each metric, and when to use each. Do not describe the
+   difference as sales growth or the rates as live. State the environment queried.
+   ```
+
+4. **Show where the definitions live (about 1 minute).** On `main`, open `demo_finance/models/marts/receivables/invoice_financials.yml` (project-relative: `models/marts/receivables/invoice_financials.yml`). Find `revenue_official` and `sales_approved_revenue` under `models[].metrics`. Show descriptions, the shared paid-status filter, `expr: invoice_amount_usd` versus `expr: invoice_amount_current_fx_usd`, and `config.meta` ownership/FX-policy fields. Finance owns Official; Sales owns Sales Approved; Engineering maintains both. Both include tax and group by issue date. This is demo paid-invoice reporting, not GAAP recognition or net collections.
+
+5. **Switch to `demo/v2-errors` (about 30 seconds).** Use Studio Version control, then open `demo_finance/analyses/demo_v2_errors.sql` (project-relative: `analyses/demo_v2_errors.sql`). Explain that this branch isolates intentional errors from production. Leave the fixture unchanged; use compile only.
+
+6. **Run the three strict-analysis cases, one at a time (about 3 minutes).** Show each analysis node's diagnostic, even if the Studio invocation is presented as successful with warnings.
+
+   **Misspelled column:**
+
+   ```text
+   dbt compile --select path:analyses/demo_v2_errors.sql --vars '{"v2_error_case":"typo"}' --static-analysis strict
+   ```
+
+   Expected: `UnresolvedIdentifier (dbt0227)` — no column `INVOICE_AMOUT_USD`; point out the missing “n” and available column suggestions.
+
+   **Wrong side of the Mesh boundary:**
+
+   ```text
+   dbt compile --select path:analyses/demo_v2_errors.sql --vars '{"v2_error_case":"upstream"}' --static-analysis strict
+   ```
+
+   Expected: `UnresolvedIdentifier (dbt0227)` — `INVOICE_AMOUNT_USD` is absent from core `invoices`; Finance owns USD valuation. Ignore the generic cache-refresh suggestion for this known fixture.
+
+   **Incompatible types:**
+
+   ```text
+   dbt compile --select path:analyses/demo_v2_errors.sql --vars '{"v2_error_case":"type"}' --static-analysis strict
+   ```
+
+   Expected: `InvalidComparison (dbt0407)` — `NUMBER(38,2) > ARRAY` is unsupported. Say: “v2 Stable catches these before executing the model SQL.” Metadata access may still require Snowflake.
+
+7. **Return to `main` and show column-level lineage (about 2 minutes).** Open `models/marts/receivables/invoice_financials.sql` in the preflight-verified column-lineage UI. Trace `invoice_amount_usd` to invoice `total_cents` and issue-date FX; trace `invoice_amount_current_fx_usd` to the same amount and latest-rate selection. Say: “Same records, two explainable valuation paths.” If metadata needs regeneration, run:
+
+   ```text
+   dbt compile --select +invoice_financials --static-analysis strict --generate-info-schema
+   ```
+
+   Use the verified Studio, VS Code, or Catalog column-level experience. A model-level DAG is not a substitute; local cross-project lineage may stop at the published core interface.
+
+8. **Demo batched testing on the healthy baseline (about 2 minutes).** Run both commands and show command details/logs:
+
+   ```text
+   dbt test --select invoice_financials,test_type:generic --force-node-selection
+   dbt test --select invoice_financials,test_type:generic --force-node-selection --batch-tests
+   ```
+
+   The preparation runs each passed 13 generic tests; the batched run showed an `aggregated_not_null_...` runtime query. Show that grouped query as the evidence. `--force-node-selection` prevents State reuse from skipping the demonstration. The first command uses the current default; verify batching is not already enabled before calling it an unbatched baseline. Do not use the unsupported `--no-batch-tests` flag or promise a fixed speedup.
+
+9. **Demo Wizard in DEV (about 7 minutes).** From updated `main`, create/switch to clean `demo/wizard-revenue-context`; do not branch from `demo/v2-errors`. Open the finance YAML and paste this short prompt:
+
+   ```text
+   Add revenue_fx_difference, reusing the two governed metrics.
+   Expose the existing FX source date as a semantic dimension.
+   Validate and query the change in DEV.
+   ```
+
+   Supply the following clarification with the short prompt, or use the full prompt in Segment 3 below, so the intended calculation, source date, and safety boundaries are explicit:
+
+   ```text
+   Work only in demo_finance using the latest nested Semantic Layer YAML spec.
+   Define revenue_fx_difference as sales_approved_revenue minus revenue_official;
+   Finance owns it and Engineering maintains it. Describe it as FX valuation
+   difference, not sales growth. Expose current_fx_rate_source_date as a time
+   dimension with day granularity. Preserve issue_date as the default time basis,
+   all existing metrics, SQL, contracts, and tests. Read project guidance and the
+   Semantic Layer skill. Cold-parse, strict-compile, run dbt sl validate, then use
+   dbt sl query in DEV for all three metrics by metric_time__month and
+   invoice__current_fx_rate_source_date__day. Show the diff. Do not commit,
+   push, merge, or deploy. Do not query deployed connectors for this DEV-only change.
+   ```
+
+   Show the small YAML diff, validation, and DEV query. Close: “We reused governed metrics and added provenance context without inventing another revenue SQL calculation.” Keep the live enhancement off `main`; reset only its changes after the demo. Allow about two minutes for wrap/questions to keep the full demo within 20–25 minutes.
+
+
 ## Branch and deployment safety
 
 - `main`: production-safe revenue definitions, model columns, tests, and this runbook. No intentional SQL errors. The live Wizard enhancement is intentionally absent.
