@@ -35,6 +35,9 @@
 - Phase 2 — First finance mart: completed. Public contracted `invoice_financials` preserves one-invoice grain from `demo_core.invoices`, joins governed issue-date rates from `demo_core.fx_rates`, retains source audit fields and FX provenance, and publishes source-currency and USD amounts for invoicing, receivables, payments, refunds, and net collections. Dependency-aware DEV build, unit conversion scenarios, structural tests, status checks, and cross-project grain reconciliation pass.
 - Phase 3 — Semantic Layer foundation: completed. `invoice_financials` uses the latest nested semantic-model spec with invoice, customer, and subscription entities; issue, due, and paid time dimensions; lifecycle and FX dimensions; and six governed simple metrics. `invoice_customers` provides the primary customer entity and readable `customer_name` dimension for analyzing invoice metrics without exposing hashed identifiers to consumers. Protected `time_spine_daily` covers 2020-01-01 through 2035-12-31. Cold parse, model builds/tests, `dbt sl validate`, and end-to-end metric queries pass.
 
+- Demo preparation — Revenue governance: `revenue_official` replaces `revenue`; Finance owns issue-date-FX paid-invoice reporting and Sales owns `sales_approved_revenue` using latest available FX on or before the build date. Engineering is technical owner. Preserve the tax-inclusive invoice population and issue-date grouping for both. Current-rate valuation is materialized at build time, with rate-source and valuation dates retained. Do not imply real-time rates or GAAP recognition.
+- Demo isolation: production-safe metrics, tests, and `DEMO_RUNBOOK.md` belong on `main`. Intentionally broken v2 SQL belongs only on `demo/v2-errors`; never merge the error fixture to `main`. The live Wizard enhancement remains absent from the production baseline so it can be added during the demo.
+
 
 
 ## Physical schema lifecycle

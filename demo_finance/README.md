@@ -49,3 +49,13 @@ After deploying the time-spine move in both environments, run `setup/cleanup_fin
 Finance CI must be attached to the General `Finance CI` environment, use target `TST`, use `DBT_DEV_ROLE2`, write to `DEV_FINANCE_GLD`, and defer to `Finance Production`. The CI job runs clone, state-modified build, Semantic Layer validation, and SQL linting with lint failures treated as errors.
 
 Because both dbt projects share one repository, native pull-request CI triggers both projects for any pull request. This is an accepted demo tradeoff. Production jobs remain manual unless an explicit orchestration trigger is configured; Finance Production must follow a successful Core Production run for core or shared changes.
+
+## Governed revenue definitions
+
+`revenue_official` (Revenue Official) replaces `revenue` immediately. Finance owns the business definition and Engineering maintains it. It sums tax-inclusive paid invoice totals in USD using each invoice's issue-date FX rate, grouped by issue date. This preserves the former metric's calculation; it is a demo paid-invoice definition, not GAAP revenue recognition or net cash collections.
+
+`sales_approved_revenue` (Sales Approved Revenue) is owned by Sales and maintained by Engineering. It uses exactly the same invoice population and issue-date time basis, revalued at the latest governed rate available per currency on or before the table build date. It supports current-FX Sales comparisons, not Finance's official historical reporting. Both metrics have descriptions and structured `config.meta` ownership, intended-use, currency, and FX-policy fields.
+
+The table retains `current_fx_rate_to_usd`, `current_fx_rate_source_date`, `fx_valuation_date`, and `invoice_amount_current_fx_usd` for auditability. Current-rate values refresh only when the table rebuilds. The demo FX feed is finite; latest available does not imply today's observation. USD uses an identity rate. Existing columns, metrics, and the `refund_rate` ratio are preserved except for the explicitly requested `revenue` rename.
+
+See [DEMO_RUNBOOK.md](DEMO_RUNBOOK.md) for the 24-minute Semantic Layer, v2 Stable, and Wizard presentation. Intentionally invalid SQL belongs only on `demo/v2-errors`, never on `main`.

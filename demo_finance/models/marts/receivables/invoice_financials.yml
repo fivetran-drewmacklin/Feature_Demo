@@ -125,6 +125,26 @@ models:
       - {name: reconciliation_difference_cents, description: Source total less recomputed total in minor currency units., data_type: "number(38,0)"}
       - {name: record_updated_at, description: Latest business-record update timestamp used by the upstream incremental model., data_type: timestamp_tz}
       - {name: _loaded_at, description: Latest contributing raw ingestion timestamp., data_type: timestamp_tz}
+      - name: current_fx_rate_to_usd
+        description: Latest governed source-currency-to-USD rate available on or before fx_valuation_date; USD uses 1.
+        data_type: "number(18,8)"
+        constraints: [{type: not_null}]
+        data_tests: [not_null]
+      - name: current_fx_rate_source_date
+        description: Actual FX observation date used for current-rate valuation; may precede the build date when the feed is stale. USD uses the valuation date.
+        data_type: date
+        constraints: [{type: not_null}]
+        data_tests: [not_null]
+      - name: fx_valuation_date
+        description: Snowflake session calendar date when this table was built; current-rate amounts remain fixed until the next build.
+        data_type: date
+        constraints: [{type: not_null}]
+        data_tests: [not_null]
+      - name: invoice_amount_current_fx_usd
+        description: Tax-inclusive invoice total revalued to USD using the latest available FX rate as of the build date, rounded per invoice to two decimals.
+        data_type: "number(38,2)"
+        constraints: [{type: not_null}]
+        data_tests: [not_null]
     metrics:
       - name: invoice_count
         description: Count of invoices issued.
@@ -132,15 +152,62 @@ models:
         type: simple
         agg: count
         expr: 1
-      - name: revenue
-        description: Total invoice amount in USD for invoices whose normalized lifecycle status is paid.
-        label: Revenue
+      - name: revenue_official
+        description: >
+          Owned by Finance; technically maintained by Engineering. Use for the
+          official historical paid-invoice revenue view in USD. Sums tax-inclusive
+          invoice totals for status paid, converted at each invoice's issue-date
+          FX rate and grouped by issue date. Preserves the former revenue metric's
+          calculation; this demo definition is not GAAP revenue recognition or
+          net cash collections. Unlike sales_approved_revenue, historical amounts
+          are not revalued when current exchange rates change.
+        label: Revenue Official
         type: simple
         agg: sum
         expr: invoice_amount_usd
         fill_nulls_with: 0
         filter: |
           {{ Dimension('invoice__status') }} = 'paid'
+        config:
+          meta:
+            owner: finance
+            business_owner: finance
+            technical_owner: engineering
+            intended_use: official_historical_paid_invoice_reporting
+            fx_policy: invoice_issue_date
+            reporting_currency: USD
+            time_basis: issue_date
+            includes_tax: true
+            related_metric: sales_approved_revenue
+      - name: sales_approved_revenue
+        description: >
+          Owned by Sales; technically maintained by Engineering. Use to compare
+          the same paid-invoice business at the latest available exchange rates
+          in USD. Sums the same tax-inclusive invoices as revenue_official and
+          groups by issue date, but revalues every invoice at the latest governed
+          rate per currency on or before the table build date. Rates can be older
+          than today; inspect current_fx_rate_source_date and fx_valuation_date.
+          Values refresh only when the table rebuilds. Not for Finance's official
+          historical reporting, GAAP recognition, or net cash collections.
+        label: Sales Approved Revenue
+        type: simple
+        agg: sum
+        expr: invoice_amount_current_fx_usd
+        fill_nulls_with: 0
+        filter: |
+          {{ Dimension('invoice__status') }} = 'paid'
+        config:
+          meta:
+            owner: sales
+            business_owner: sales
+            technical_owner: engineering
+            intended_use: sales_paid_invoice_reporting_at_current_fx
+            fx_policy: latest_available_on_or_before_build_date
+            reporting_currency: USD
+            time_basis: issue_date
+            includes_tax: true
+            related_metric: revenue_official
+
 
       - name: total_invoice_amount_usd
         description: Total invoiced amount converted to USD at each invoice's governed issue-date rate.
@@ -170,6 +237,13 @@ models:
         agg: sum
         expr: refund_amount_usd
         fill_nulls_with: 0
+      - name: refund_rate
+        description: Total successful refunds in USD divided by total invoiced amount in USD.
+        label: Refund Rate
+        type: ratio
+        numerator: total_refund_amount_usd
+        denominator: total_invoice_amount_usd
+
       - name: total_net_collections_amount_usd
         description: Total successful payments less successful refunds converted to USD at each invoice's governed issue-date rate.
         label: Total Net Collections (USD)
@@ -194,3 +268,23 @@ unit_tests:
       rows:
         - {invoice_id: inv_usd, source_currency: USD, fx_rate_to_usd: 1, fx_rate_source_date: '2026-01-01', used_prior_fx_rate: false, fx_provider: identity, invoice_amount_usd: 100.00, outstanding_receivable_amount_usd: 25.00, successful_payment_amount_usd: 75.00, refund_amount_usd: 5.00, net_collections_amount_usd: 70.00}
         - {invoice_id: inv_eur, source_currency: EUR, fx_rate_to_usd: 1.2, fx_rate_source_date: '2025-12-31', used_prior_fx_rate: true, fx_provider: test_provider, invoice_amount_usd: 120.00, outstanding_receivable_amount_usd: 30.00, successful_payment_amount_usd: 90.00, refund_amount_usd: 6.00, net_collections_amount_usd: 84.00}
+
+
+  - name: invoice_financials_separates_historical_and_current_fx
+    description: Revalues the same invoice at latest available FX without changing historical valuation, excludes future rates, and preserves USD identity.
+    model: invoice_financials
+    given:
+      - input: ref('demo_core', 'invoices')
+        rows:
+          - {invoice_id: inv_eur_revalue, status: paid, issue_date: '2020-01-01', currency: EUR, total_cents: 10000}
+          - {invoice_id: inv_usd_identity, status: paid, issue_date: '2020-01-01', currency: USD, total_cents: 10000}
+      - input: ref('demo_core', 'fx_rates')
+        rows:
+          - {rate_date: '2020-01-01', from_currency: EUR, rate: 1.2, source_rate_date: '2020-01-01', used_prior_rate: false, provider: test_provider}
+          - {rate_date: '2021-01-01', from_currency: EUR, rate: 1.3, source_rate_date: '2020-12-31', used_prior_rate: true, provider: test_provider}
+          - {rate_date: '2099-01-01', from_currency: EUR, rate: 9.9, source_rate_date: '2099-01-01', used_prior_rate: false, provider: test_provider}
+    expect:
+      rows:
+        - {invoice_id: inv_eur_revalue, invoice_amount_usd: 120.00, invoice_amount_current_fx_usd: 130.00, current_fx_rate_to_usd: 1.3}
+
+        - {invoice_id: inv_usd_identity, invoice_amount_usd: 100.00, invoice_amount_current_fx_usd: 100.00, current_fx_rate_to_usd: 1}
