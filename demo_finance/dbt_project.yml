@@ -47,6 +47,8 @@ models:
       +access: public
       receivables:
         +schema: receivables
+        +state:
+          lag_tolerance: "{{ '4h' if target.name == 'PRD' else '24h' }}"
 
 data_tests:
   demo_finance:
