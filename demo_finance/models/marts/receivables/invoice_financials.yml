@@ -3,9 +3,10 @@ version: 2
 models:
   - name: invoice_financials
     description: >
-      Governed one-invoice finance fact with source-currency audit fields and
+      Governed one-invoice finance fact with source-currency audit fields,
       issue-date USD valuation for invoicing, receivables, payments, refunds,
-      and net collections.
+      and net collections, plus payment-date USD invoice valuation for Sales.
+
     semantic_model:
       enabled: true
     agg_time_dimension: issue_date
@@ -125,26 +126,27 @@ models:
       - {name: reconciliation_difference_cents, description: Source total less recomputed total in minor currency units., data_type: "number(38,0)"}
       - {name: record_updated_at, description: Latest business-record update timestamp used by the upstream incremental model., data_type: timestamp_tz}
       - {name: _loaded_at, description: Latest contributing raw ingestion timestamp., data_type: timestamp_tz}
-      - name: current_fx_rate_to_usd
-        description: Latest governed source-currency-to-USD rate available on or before fx_valuation_date; USD uses 1.
+      - name: payment_fx_rate_to_usd
+        description: Latest governed source-currency-to-USD rate on or before the date of paid_at for paid invoices; USD uses 1 and unpaid invoices are null.
         data_type: "number(18,8)"
-        constraints: [{type: not_null}]
-        data_tests: [not_null]
-      - name: current_fx_rate_source_date
-        description: Actual FX observation date used for current-rate valuation; may precede the build date when the feed is stale. USD uses the valuation date.
+        data_tests:
+          - not_null:
+              config:
+                where: "status = 'paid'"
+      - name: payment_fx_rate_date
+        description: Actual FX observation date used for payment-date valuation, which may precede the payment date; USD uses the payment date and unpaid invoices are null.
         data_type: date
-        constraints: [{type: not_null}]
-        data_tests: [not_null]
-      - name: fx_valuation_date
-        description: Snowflake session calendar date when this table was built; current-rate amounts remain fixed until the next build.
-        data_type: date
-        constraints: [{type: not_null}]
-        data_tests: [not_null]
-      - name: invoice_amount_current_fx_usd
-        description: Tax-inclusive invoice total revalued to USD using the latest available FX rate as of the build date, rounded per invoice to two decimals.
+        data_tests:
+          - not_null:
+              config:
+                where: "status = 'paid'"
+      - name: invoice_amount_payment_fx_usd
+        description: Tax-inclusive invoice total converted to USD at the latest governed FX rate on or before the date of paid_at, rounded per invoice to two decimals; null for unpaid invoices.
         data_type: "number(38,2)"
-        constraints: [{type: not_null}]
-        data_tests: [not_null]
+        data_tests:
+          - not_null:
+              config:
+                where: "status = 'paid'"
     metrics:
       - name: invoice_count
         description: Count of invoices issued.
@@ -181,18 +183,16 @@ models:
             related_metric: sales_approved_revenue
       - name: sales_approved_revenue
         description: >
-          Owned by Sales; technically maintained by Engineering. Use to compare
-          the same paid-invoice business at the latest available exchange rates
-          in USD. Sums the same tax-inclusive invoices as revenue_official and
-          groups by issue date, but revalues every invoice at the latest governed
-          rate per currency on or before the table build date. Rates can be older
-          than today; inspect current_fx_rate_source_date and fx_valuation_date.
-          Values refresh only when the table rebuilds. Not for Finance's official
-          historical reporting, GAAP recognition, or net cash collections.
+          Owned by Sales; technically maintained by Engineering. Sums the same
+          tax-inclusive paid invoices as revenue_official in USD and groups by
+          invoice issue date, using payment-date FX: the latest governed rate
+          per currency on or before the date of paid_at. Inspect payment_fx_rate_date
+          for the actual observation date. USD uses rate 1. Not for Finance's
+          official historical reporting, GAAP recognition, or net cash collections.
         label: Sales Approved Revenue
         type: simple
         agg: sum
-        expr: invoice_amount_current_fx_usd
+        expr: invoice_amount_payment_fx_usd
         fill_nulls_with: 0
         filter: |
           {{ Dimension('invoice__status') }} = 'paid'
@@ -201,13 +201,12 @@ models:
             owner: sales
             business_owner: sales
             technical_owner: engineering
-            intended_use: sales_paid_invoice_reporting_at_current_fx
-            fx_policy: latest_available_on_or_before_build_date
+            intended_use: sales_paid_invoice_reporting_at_payment_fx
+            fx_policy: "payment-date FX"
             reporting_currency: USD
             time_basis: issue_date
             includes_tax: true
             related_metric: revenue_official
-
 
       - name: total_invoice_amount_usd
         description: Total invoiced amount converted to USD at each invoice's governed issue-date rate.
@@ -243,7 +242,6 @@ models:
         type: ratio
         numerator: total_refund_amount_usd
         denominator: total_invoice_amount_usd
-
       - name: total_net_collections_amount_usd
         description: Total successful payments less successful refunds converted to USD at each invoice's governed issue-date rate.
         label: Total Net Collections (USD)
@@ -259,8 +257,8 @@ unit_tests:
     given:
       - input: ref('demo_core', 'invoices')
         rows:
-          - {invoice_id: inv_usd, invoice_number: USD-1, customer_id: customer_1, billing_customer_id: billing_1, status: paid, issue_date: '2026-01-01', currency: USD, total_cents: 10000, amount_due_cents: 2500, successful_payment_cents: 7500, successful_refund_cents: 500, net_collections_cents: 7000}
-          - {invoice_id: inv_eur, invoice_number: EUR-1, customer_id: customer_2, billing_customer_id: billing_2, status: paid, issue_date: '2026-01-01', currency: EUR, total_cents: 10000, amount_due_cents: 2500, successful_payment_cents: 7500, successful_refund_cents: 500, net_collections_cents: 7000}
+          - {invoice_id: inv_usd, invoice_number: USD-1, customer_id: customer_1, billing_customer_id: billing_1, status: paid, issue_date: '2026-01-01', paid_at: '2026-01-02 12:00:00 +00:00', currency: USD, total_cents: 10000, amount_due_cents: 2500, successful_payment_cents: 7500, successful_refund_cents: 500, net_collections_cents: 7000}
+          - {invoice_id: inv_eur, invoice_number: EUR-1, customer_id: customer_2, billing_customer_id: billing_2, status: paid, issue_date: '2026-01-01', paid_at: '2026-01-02 12:00:00 +00:00', currency: EUR, total_cents: 10000, amount_due_cents: 2500, successful_payment_cents: 7500, successful_refund_cents: 500, net_collections_cents: 7000}
       - input: ref('demo_core', 'fx_rates')
         rows:
           - {rate_date: '2026-01-01', from_currency: EUR, rate: 1.2, source_rate_date: '2025-12-31', used_prior_rate: true, provider: test_provider}
@@ -269,22 +267,26 @@ unit_tests:
         - {invoice_id: inv_usd, source_currency: USD, fx_rate_to_usd: 1, fx_rate_source_date: '2026-01-01', used_prior_fx_rate: false, fx_provider: identity, invoice_amount_usd: 100.00, outstanding_receivable_amount_usd: 25.00, successful_payment_amount_usd: 75.00, refund_amount_usd: 5.00, net_collections_amount_usd: 70.00}
         - {invoice_id: inv_eur, source_currency: EUR, fx_rate_to_usd: 1.2, fx_rate_source_date: '2025-12-31', used_prior_fx_rate: true, fx_provider: test_provider, invoice_amount_usd: 120.00, outstanding_receivable_amount_usd: 30.00, successful_payment_amount_usd: 90.00, refund_amount_usd: 6.00, net_collections_amount_usd: 84.00}
 
-
-  - name: invoice_financials_separates_historical_and_current_fx
-    description: Revalues the same invoice at latest available FX without changing historical valuation, excludes future rates, and preserves USD identity.
+  - name: invoice_financials_separates_issue_and_payment_fx
+    description: Preserves issue-date valuation, selects the latest rate on or before payment with observation provenance, excludes later rates, preserves USD identity, and leaves unpaid or missing-rate payments null.
     model: invoice_financials
     given:
       - input: ref('demo_core', 'invoices')
         rows:
-          - {invoice_id: inv_eur_revalue, status: paid, issue_date: '2020-01-01', currency: EUR, total_cents: 10000}
-          - {invoice_id: inv_usd_identity, status: paid, issue_date: '2020-01-01', currency: USD, total_cents: 10000}
+          - {invoice_id: inv_eur_payment, status: paid, issue_date: '2020-01-01', paid_at: '2021-01-02 12:00:00 +00:00', currency: EUR, total_cents: 10000}
+          - {invoice_id: inv_eur_exact, status: paid, issue_date: '2020-01-01', paid_at: '2020-01-01 12:00:00 +00:00', currency: EUR, total_cents: 10000}
+          - {invoice_id: inv_usd_identity, status: paid, issue_date: '2020-01-01', paid_at: '2021-01-02 12:00:00 +00:00', currency: USD, total_cents: 10000}
+          - {invoice_id: inv_eur_open, status: open, issue_date: '2020-01-01', currency: EUR, total_cents: 10000}
+          - {invoice_id: inv_eur_no_rate, status: paid, issue_date: '2019-01-01', paid_at: '2019-01-02 12:00:00 +00:00', currency: EUR, total_cents: 10000}
       - input: ref('demo_core', 'fx_rates')
         rows:
           - {rate_date: '2020-01-01', from_currency: EUR, rate: 1.2, source_rate_date: '2020-01-01', used_prior_rate: false, provider: test_provider}
           - {rate_date: '2021-01-01', from_currency: EUR, rate: 1.3, source_rate_date: '2020-12-31', used_prior_rate: true, provider: test_provider}
-          - {rate_date: '2099-01-01', from_currency: EUR, rate: 9.9, source_rate_date: '2099-01-01', used_prior_rate: false, provider: test_provider}
+          - {rate_date: '2021-01-03', from_currency: EUR, rate: 9.9, source_rate_date: '2021-01-03', used_prior_rate: false, provider: test_provider}
     expect:
       rows:
-        - {invoice_id: inv_eur_revalue, invoice_amount_usd: 120.00, invoice_amount_current_fx_usd: 130.00, current_fx_rate_to_usd: 1.3}
-
-        - {invoice_id: inv_usd_identity, invoice_amount_usd: 100.00, invoice_amount_current_fx_usd: 100.00, current_fx_rate_to_usd: 1}
+        - {invoice_id: inv_eur_payment, invoice_amount_usd: 120.00, invoice_amount_payment_fx_usd: 130.00, payment_fx_rate_to_usd: 1.3, payment_fx_rate_date: '2020-12-31'}
+        - {invoice_id: inv_eur_exact, invoice_amount_usd: 120.00, invoice_amount_payment_fx_usd: 120.00, payment_fx_rate_to_usd: 1.2, payment_fx_rate_date: '2020-01-01'}
+        - {invoice_id: inv_usd_identity, invoice_amount_usd: 100.00, invoice_amount_payment_fx_usd: 100.00, payment_fx_rate_to_usd: 1, payment_fx_rate_date: '2021-01-02'}
+        - {invoice_id: inv_eur_open, invoice_amount_usd: 120.00, invoice_amount_payment_fx_usd: null, payment_fx_rate_to_usd: null, payment_fx_rate_date: null}
+        - {invoice_id: inv_eur_no_rate, invoice_amount_usd: null, invoice_amount_payment_fx_usd: null, payment_fx_rate_to_usd: null, payment_fx_rate_date: null}

@@ -44,16 +44,20 @@ fx_rates as (
 
 ),
 
-current_fx_rates as (
+payment_fx_rates as (
 
     select
-        from_currency,
-        rate,
-        source_rate_date
-    from fx_rates
-    where rate_date <= current_date()
+        invoices.invoice_id,
+        fx_rates.rate,
+        fx_rates.source_rate_date
+    from invoices
+    left join fx_rates
+        on invoices.currency = fx_rates.from_currency
+        and fx_rates.rate_date <= cast(invoices.paid_at as date)
+        and fx_rates.rate is not null
+    where invoices.status = 'paid'
     qualify row_number() over (
-        partition by from_currency order by rate_date desc
+        partition by invoices.invoice_id order by fx_rates.rate_date desc
     ) = 1
 
 ),
@@ -79,20 +83,21 @@ invoices_with_fx as (
             else fx_rates.provider
         end as fx_provider,
         case
+            when invoices.status <> 'paid' or invoices.paid_at is null then null
             when invoices.currency = 'USD' then cast(1 as number(18, 8))
-            else current_fx_rates.rate
-        end as current_fx_rate_to_usd,
+            else payment_fx_rates.rate
+        end as payment_fx_rate_to_usd,
         case
-            when invoices.currency = 'USD' then current_date()
-            else current_fx_rates.source_rate_date
-        end as current_fx_rate_source_date,
-        current_date() as fx_valuation_date
+            when invoices.status <> 'paid' or invoices.paid_at is null then null
+            when invoices.currency = 'USD' then cast(invoices.paid_at as date)
+            else payment_fx_rates.source_rate_date
+        end as payment_fx_rate_date
     from invoices
     left join fx_rates
         on invoices.issue_date = fx_rates.rate_date
         and invoices.currency = fx_rates.from_currency
-    left join current_fx_rates
-        on invoices.currency = current_fx_rates.from_currency
+    left join payment_fx_rates
+        on invoices.invoice_id = payment_fx_rates.invoice_id
 
 )
 
@@ -137,8 +142,7 @@ select
     reconciliation_difference_cents,
     record_updated_at,
     _loaded_at,
-    current_fx_rate_to_usd,
-    current_fx_rate_source_date,
-    fx_valuation_date,
-    cast(round((total_cents / 100.0) * current_fx_rate_to_usd, 2) as number(38, 2)) as invoice_amount_current_fx_usd
+    payment_fx_rate_to_usd,
+    payment_fx_rate_date,
+    cast(round((total_cents / 100.0) * payment_fx_rate_to_usd, 2) as number(38, 2)) as invoice_amount_payment_fx_usd
 from invoices_with_fx
