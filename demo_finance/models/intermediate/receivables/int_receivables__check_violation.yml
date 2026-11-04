@@ -1,0 +1,9 @@
+version: 2
+
+models:
+  - name: int_receivables__check_violation
+    description: Branch-only project-check fixture; a protected Finance view deliberately violates the table-only materialization rule. Never build or merge to main.
+    columns:
+      - name: fixture_id
+        description: Constant identifier for this compile-only governance fixture.
+        data_type: number

@@ -119,3 +119,86 @@ Presenter-only gates: refresh Sheets/Claude metadata, compare identical filters,
 - [Static analysis](https://docs.getdbt.com/docs/build/about-static-analysis)
 - [Column-level lineage](https://docs.getdbt.com/docs/explore/column-level-lineage)
 - [Latest Semantic Layer spec](https://docs.getdbt.com/docs/build/latest-metrics-spec)
+
+
+## Rehearsal record — 2026-11-04, v2 Stable 2.0.11
+
+### Production-safe baseline
+
+Payment-date FX was merged from `demo/payment-date-fx` to `main` and deployed by Finance Production run `70403232082308`, commit `2520a1d1f44edb95043709641e9f8a2ad22cc560`. The run explicitly selected `main`, successfully built all three local models, passed all data/unit tests and project checks, validated the Semantic Layer, generated the catalog, and ran the October `dbt sl query` above.
+
+The deployed production Semantic Layer independently returned:
+
+| Metric | Label | October 2026 USD |
+| --- | --- | ---: |
+| `revenue_official` | Revenue Official | 4,360,747.09 |
+| `sales_approved_revenue` | Sales Approved Revenue | 4,360,272.67 |
+
+Both use invoice issue month and paid invoices. DEV returned the same values. The existing outstanding-receivables metric remains; no new outstanding-invoices metric was created.
+
+The payment-FX branch passed `dbt parse --no-partial-parse`, `dbt build --select +invoice_financials --defer`, `dbt compile --select +invoice_financials --static-analysis strict`, `dbt check`, and `dbt sl validate`. The slice build passed one model, 13 data tests (12 generic plus invoice-grain reconciliation), and two unit tests. A DEV data profile verified all 1,901 paid invoices have the three payment-FX values, all other statuses have null payment valuation, and no FX observation date is later than payment.
+
+### Independent SQL errors — demo/v2-errors only
+
+All paths below are relative to `demo_finance/`. Each analysis has inline strict-analysis config, contains one always-active error, and needs no var. Analyses keep the invalid SQL outside the warehouse model graph. Open all three in Studio before the demo and verify the editor underlines visually; CLI node diagnostics were verified, UI rendering cannot be certified by the command tools.
+
+```text
+dbt compile --select path:analyses/demo_v2_misspelled_column.sql --static-analysis strict
+dbt compile --select path:analyses/demo_v2_mesh_boundary.sql --static-analysis strict
+dbt compile --select path:analyses/demo_v2_type_mismatch.sql --static-analysis strict
+```
+
+| Analysis | Observed diagnostic |
+| --- | --- |
+| `analyses/demo_v2_misspelled_column.sql` | `UnresolvedIdentifier (dbt0227)`: `No column INVOICE_AMOUT_USD found in the locally cached schema for the source in DEV_FINANCE_GLD.RECEIVABLES.INVOICE_FINANCIALS`. |
+| `analyses/demo_v2_mesh_boundary.sql` | `UnresolvedIdentifier (dbt0227)`: `No column INVOICE_AMOUNT_USD found in the locally cached schema for the source in PRD_CORE_SLV.CORE.INVOICES`. Finance, not Core, owns USD valuation. |
+| `analyses/demo_v2_type_mismatch.sql` | `InvalidComparison (dbt0407)`: `Comparison failed: Comparison between NUMBER(38,2) and ARRAY with > operator is not supported`. |
+
+Each command reported `Summary 1 total | 1 error` and an errored analysis node. **Important wrapper behavior:** the overall invocation reports success-with-warnings, so do not promise a nonzero exit or a red invocation badge. Show the failed node and its diagnostic. The unresolved-column message suggests `dbt clean` generically; these columns really are absent, so cleaning is not the fix. Two additional `dbt1700` warnings come from Studio-injected legacy compile options, not these fixtures.
+
+### Deliberate project-check failure
+
+`models/intermediate/receivables/int_receivables__check_violation.sql` configures a protected Finance model as a view; the existing rule requires protected Finance models to be tables. Its matching YAML documents its branch-only purpose. This fixture was never materialized.
+
+```text
+dbt check
+```
+
+Observed key output:
+
+```text
+Failed check finance_models_use_approved_materializations
+Error [CheckFailed (dbt1650)]: check 'finance_models_use_approved_materializations' failed with 1 violation(s)
+model.demo_finance.int_receivables__check_violation
+Passed check public_models_enforce_contracts
+Passed check public_models_owned_by_finance
+```
+
+With all three SQL-error files present and before adding the view, `dbt check` passed all three checks. With the view present, check still executes and fails only the intended materialization rule. No exclusions or var toggles are needed. Cold parse also succeeds on the error branch.
+
+All three checks pass on deployed `main`; production `run_results.json` records `pass` for each:
+
+- `checks/finance_models_use_approved_materializations.sql`: Finance public models must be tables/incrementals and protected models must be tables.
+- `checks/public_models_enforce_contracts.sql`: every public local Finance model must enforce its contract.
+- `checks/public_models_owned_by_finance.sql`: every public local Finance model must belong to the finance group.
+
+### Main-branch batching evidence
+
+Both requested test commands were executed while checked out on `main`, against DEV, with 12/12 generic tests passing. The selection comprises ten not-null tests, one unique test, and one accepted-values test. The three paid-only not-null tests use `where` and are not part of the default-config batch.
+
+The batched invocation logged:
+
+```text
+Writing runtime sql for node "test.demo_finance.aggregated_not_null_model_demo_ba447a739b26c366f73193c7f879bc2f"
+Processed 12 data tests
+Summary 12 total | 12 success
+```
+
+The unflagged invocation was `56e80450-2de1-4069-977e-cc6876d704ed`; the batched invocation was `cb432b2c-40f1-42bb-9fc5-4405175d7a0e`. Use command details/debug logs to show the aggregation; do not claim every test is batched or promise faster timing.
+
+### Limitations to rehearse
+
+- `dbt compare --select invoice_financials+ --defer` failed with `InvalidArgument (dbt1007): Compare command requires a state manifest (via --state, --defer-state, or dbt Cloud)`. No rendered production diff is claimed.
+- Use the verified `--where` query, not unsupported `--start-time` / `--end-time` flags.
+- Verify live editor underlines and column-level lineage manually, and refresh Sheets/Claude after deployment. Column lineage described above is grounded in the SQL; local Mesh lineage may stop at the published Core interface.
+- Keep production on `main`. Never build, deploy, or merge `demo/v2-errors`. Return to `main` for healthy tests and the live metric enhancement.

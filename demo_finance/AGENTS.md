@@ -37,6 +37,8 @@
 
 - Demo preparation — Revenue governance: `revenue_official` preserves Finance's issue-date-FX paid-invoice reporting; Sales owns `sales_approved_revenue` using payment-date FX, the latest governed rate on or before the date of `paid_at`. Engineering is technical owner. Preserve the tax-inclusive paid population and issue-date grouping for both. Payment valuation exposes `payment_fx_rate_to_usd`, `payment_fx_rate_date` (actual observation date), and `invoice_amount_payment_fx_usd`, null for unpaid invoices and tested not-null for paid invoices. Do not imply live quotes or GAAP recognition.
 - Demo isolation: production-safe metrics, tests, and `DEMO_RUNBOOK.md` belong on `main`. Intentionally broken v2 SQL and deliberate check violations belong only on `demo/v2-errors`; never merge them to `main` or run production from this branch. Keep the live outstanding-invoices enhancement absent from the production baseline; the existing total-outstanding-receivables metric is preserved.
+- Error-demo rehearsal (branch-only): `analyses/demo_v2_misspelled_column.sql`, `analyses/demo_v2_mesh_boundary.sql`, and `analyses/demo_v2_type_mismatch.sql` are always-active strict analyses; keep the errors intact. `models/intermediate/receivables/int_receivables__check_violation.sql` is deliberately a protected view and must fail `finance_models_use_approved_materializations`. Run compile/check only, never build or deploy this branch. `dbt check` remains runnable with the broken analyses. See `DEMO_RUNBOOK.md` for verified commands and wrapper-status caveats.
+
 
 
 
