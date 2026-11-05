@@ -4,6 +4,8 @@ models:
   - name: invoices
     description: Governed reconciled invoice and collection facts in source currency for downstream projects.
     config:
+      state:
+        lag_tolerance: 15m
       contract:
         enforced: true
       tags: [public_interface]
