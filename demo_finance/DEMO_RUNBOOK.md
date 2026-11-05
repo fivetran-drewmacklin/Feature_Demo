@@ -202,3 +202,34 @@ The unflagged invocation was `56e80450-2de1-4069-977e-cc6876d704ed`; the batched
 - Use the verified `--where` query, not unsupported `--start-time` / `--end-time` flags.
 - Verify live editor underlines and column-level lineage manually, and refresh Sheets/Claude after deployment. Column lineage described above is grounded in the SQL; local Mesh lineage may stop at the published Core interface.
 - Keep production on `main`. Never build, deploy, or merge `demo/v2-errors`. Return to `main` for healthy tests and the live metric enhancement.
+
+
+## Studio underline rehearsal — working diagnostic probes
+
+On `demo/v2-errors` with dbt v2 Stable 2.0.11, the presenter reported that underlines appeared after the three probes below were added and individually compiled. The original local-ref examples had previously produced CLI errors without editor underlines, and go-to-definition on the local ref reported no definition found. The exact Studio/editor root cause remains unconfirmed; these steps preserve the working fixtures, not a guaranteed editor-session reset.
+
+### Recommended sequence for the next rehearsal
+
+1. Open the Finance project in Studio and select branch `demo/v2-errors`. Keep production on `main`; never merge, build, or deploy this error branch.
+2. Open these three files for the presentation:
+   - `analyses/demo_v2_probe_cte_misspelled_column.sql`: underline on `invoice_amout_usd` in the final SELECT. The CTE defines the correctly spelled column and has no refs or warehouse-table dependencies.
+   - `analyses/demo_v2_probe_cte_type_mismatch.sql`: invalid NUMBER-to-ARRAY comparison in the WHERE clause. The CTE supplies its own explicit numeric type.
+   - `analyses/demo_v2_mesh_boundary.sql`: missing Finance-owned USD column on Core's published invoice interface.
+3. Open `analyses/demo_v2_probe_mesh_type_mismatch.sql` as an additional Mesh/type-check example: `total_cents > array_construct(1, 2)`.
+4. Verify underlines visually before presenting. To reproduce the compiler checks, run the following commands individually from the Finance project command bar. No CLI strict override or deferral override is required; each fixture has inline strict config.
+
+```text
+dbt compile --select path:analyses/demo_v2_probe_cte_misspelled_column.sql
+dbt compile --select path:analyses/demo_v2_probe_cte_type_mismatch.sql
+dbt compile --select path:analyses/demo_v2_probe_mesh_type_mismatch.sql
+dbt compile --select path:analyses/demo_v2_mesh_boundary.sql
+```
+
+The first probe reports `UnresolvedIdentifier (dbt0227)`, with `SAMPLE_INVOICE.INVOICE_AMOUNT_USD` available. The second reports `InvalidComparison (dbt0407)`, NUMBER(38,2) versus ARRAY. The Mesh type probe reports the same comparison diagnostic with NUMBER(18,0) versus ARRAY; its input resolves through Core's production publication. Each selected analysis reports `Summary 1 total | 1 error`, even when the invocation wrapper reports success-with-warnings.
+
+### Preserved configuration and limits
+
+- `models/marts/receivables/invoice_financials.yml` explicitly sets `config.static_analysis: strict`. Cold parse and compilation of that model passed. This setting alone did not initially restore the missing underlines; it is retained to preserve the working rehearsal state.
+- The original `demo_v2_misspelled_column.sql` and `demo_v2_type_mismatch.sql` remain unchanged for investigating local-ref editor behavior. Their intended CLI errors were verified both with and without a strict CLI override, and with production deferral favored.
+- No upstream Core settings were changed. No models were built, no invalid query was executed for preview, and nothing was deployed.
+- A git commit preserves files and configuration, not Studio's in-memory language-server state. If underlines are absent in a fresh session, record which of the self-contained and Mesh probes are affected, capture screenshots and CLI diagnostics, and use that minimal reproduction for Support. Do not assume another compile guarantees an editor refresh.

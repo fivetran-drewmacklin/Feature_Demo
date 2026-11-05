@@ -11,6 +11,8 @@ models:
       enabled: true
     agg_time_dimension: issue_date
     config:
+      static_analysis: strict
+
       contract:
         enforced: true
       tags: [public_interface, finance]
