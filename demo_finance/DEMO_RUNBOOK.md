@@ -13,10 +13,10 @@ Keep production on `main`. Use October 2026 with identical issue-date filters in
 
 | Metric / label | Owner | Amount and FX policy |
 | --- | --- | --- |
-| `revenue_official` / Revenue Official | Finance | `invoice_amount_usd`; governed issue-date FX. |
-| `sales_approved_revenue` / Sales Approved Revenue | Sales | `invoice_amount_payment_fx_usd`; payment-date FX, latest rate on or before the date of `paid_at`. |
+| `revenue_official` / Revenue Official | Finance | `invoice_amount_payment_fx_usd`; payment-date FX, latest rate on or before the date of `paid_at`. Leadership's official demo definition. |
+| `sales_approved_revenue` / Sales Approved Revenue | Sales | `invoice_amount_usd`; governed issue-date FX, insulating Sales performance from later currency movements. |
 
-Both live under `models[].metrics` in `models/marts/receivables/invoice_financials.yml`. Show the shared paid-status filter, `expr`, and structured `config.meta` fields. Sales' `fx_policy` is exactly `payment-date FX`.
+Both live under `models[].metrics` in `models/marts/receivables/invoice_financials.yml`. Show the shared paid-status filter, `expr`, and structured `config.meta` fields. Finance's `fx_policy` is `payment_date`; Sales' is `invoice_issue_date`. Invoice issuance is the demo's sales event, not contract signing. Keep issue-date grouping for both so FX policy is the only difference. The Semantic Layer preserves both approved perspectives and identifies Finance's as official.
 
 `payment_fx_rate_to_usd` is the selected rate. `payment_fx_rate_date` records the actual FX observation date, including prior observations carried forward by Core. USD uses identity rate 1 and the payment date. Payment valuation is null for unpaid invoices, with paid-only not-null tests. Later rates never enter an earlier payment's valuation.
 
@@ -25,9 +25,9 @@ Claude prompt:
 ```text
 Discover revenue_official and sales_approved_revenue in the dbt Semantic Layer.
 Explain their owners, tax treatment, shared paid-invoice population, issue-date
-time basis, and issue-date versus payment-date FX policies. Query both for
-October 2026 using identical filters. Explain the difference without calling
-it sales growth. State which environment you queried.
+time basis, Finance's payment-date FX policy, and Sales' issue-date FX policy.
+Query both for October 2026 using identical filters. Explain the difference
+without calling it sales growth. State which environment you queried.
 ```
 
 Studio query:
@@ -36,16 +36,17 @@ Studio query:
 dbt sl query --metrics revenue_official,sales_approved_revenue --group-by metric_time__month --where "{{ TimeDimension('metric_time', 'day') }} >= '2026-10-01' and {{ TimeDimension('metric_time', 'day') }} < '2026-11-01'"
 ```
 
-This command passed in DEV on v2 Stable 2.0.11: Revenue Official = $4,360,747.09 and Sales Approved Revenue = $4,360,272.67. The scope is October 1 inclusive through November 1 exclusive. Reconfirm against production after deployment; the installed CLI does not accept `--start-time` / `--end-time`.
+Re-run this query in DEV after the FX-policy swap, then reconfirm against production after deployment. The scope is October 1 inclusive through November 1 exclusive. Do not reuse figures from the previous metric assignments. The installed CLI does not accept `--start-time` / `--end-time`.
 
 
 ## Column-level lineage
 
 On `main`, open `invoice_financials.sql` and inspect the column-level lineage UI:
 
-- `demo_core.invoices.total_cents` and `demo_core.fx_rates.rate` joined on `issue_date` and currency → `fx_rate_to_usd` → `invoice_amount_usd` → `revenue_official`.
-- `demo_core.invoices.total_cents`, `paid_at`, currency and paid status plus `demo_core.fx_rates.rate` selected by latest `rate_date <= date(paid_at)` → `payment_fx_rate_to_usd` → `invoice_amount_payment_fx_usd` → `sales_approved_revenue`.
+- `demo_core.invoices.total_cents` and `demo_core.fx_rates.rate` joined on `issue_date` and currency → `fx_rate_to_usd` → `invoice_amount_usd` → `sales_approved_revenue`.
+- `demo_core.invoices.total_cents`, `paid_at`, currency and paid status plus `demo_core.fx_rates.rate` selected by latest `rate_date <= date(paid_at)` → `payment_fx_rate_to_usd` → `invoice_amount_payment_fx_usd` → `revenue_official`.
 - `demo_core.fx_rates.source_rate_date` → `payment_fx_rate_date`; USD uses `date(paid_at)`.
+
 
 Both amounts use `round(total_cents / 100.0 * rate, 2)`. Model-level DAGs are not column-level lineage. Local cross-project lineage may stop at Core's published interface; do not promise its internals are loaded.
 

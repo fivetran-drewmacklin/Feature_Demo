@@ -52,9 +52,10 @@ Because both dbt projects share one repository, native pull-request CI triggers 
 
 ## Governed revenue definitions
 
-`revenue_official` (Revenue Official) replaces `revenue` immediately. Finance owns the business definition and Engineering maintains it. It sums tax-inclusive paid invoice totals in USD using each invoice's issue-date FX rate, grouped by issue date. This preserves the former metric's calculation; it is a demo paid-invoice definition, not GAAP revenue recognition or net cash collections.
+`revenue_official` (Revenue Official) replaces `revenue` immediately. Finance owns the business definition and Engineering maintains it. Leadership uses this official demo definition: tax-inclusive paid invoice totals in USD converted at the latest governed rate per currency on or before the date of `paid_at`, grouped by invoice issue date. Its `config.meta.fx_policy` is `payment_date`. This is an illustrative paid-invoice definition, not GAAP revenue recognition or net cash collections.
 
-`sales_approved_revenue` (Sales Approved Revenue) is owned by Sales and maintained by Engineering. It uses exactly the same tax-inclusive paid invoice population and issue-date time basis, converted at the latest governed rate per currency on or before the date of `paid_at`. Its `config.meta.fx_policy` is `payment-date FX`. It supports Sales payment-date comparisons, not Finance's official historical reporting.
+`sales_approved_revenue` (Sales Approved Revenue) is owned by Sales and maintained by Engineering. It uses exactly the same tax-inclusive paid invoice population and issue-date time basis, converted at each invoice's governed issue-date FX rate. Its `config.meta.fx_policy` is `invoice_issue_date`. It preserves invoice-date sales value so later currency movements do not affect Sales performance. Invoice issuance is the demo's sales event; this metric does not use contract-signing date. Both definitions remain available in the Semantic Layer, with Finance's designated as official.
+
 
 The table retains `payment_fx_rate_to_usd`, `payment_fx_rate_date`, and `invoice_amount_payment_fx_usd` for auditability. The rate date is the actual observation date, including carried-forward observations; USD uses rate 1 and the payment date. These columns are null for unpaid invoices and tested for non-null values on paid invoices. Issue-date columns and all other existing metrics, including `refund_rate` and `total_outstanding_receivable_amount_usd`, are preserved.
 

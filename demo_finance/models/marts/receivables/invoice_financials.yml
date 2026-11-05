@@ -5,7 +5,9 @@ models:
     description: >
       Governed one-invoice finance fact with source-currency audit fields,
       issue-date USD valuation for invoicing, receivables, payments, refunds,
-      and net collections, plus payment-date USD invoice valuation for Sales.
+      and net collections, plus payment-date USD invoice valuation. Sales-approved
+      revenue uses issue-date FX; Finance's official revenue uses payment-date FX.
+
 
     semantic_model:
       enabled: true
@@ -156,40 +158,15 @@ models:
         expr: 1
       - name: revenue_official
         description: >
-          Owned by Finance; technically maintained by Engineering. Use for the
-          official historical paid-invoice revenue view in USD. Sums tax-inclusive
-          invoice totals for status paid, converted at each invoice's issue-date
-          FX rate and grouped by issue date. Preserves the former revenue metric's
-          calculation; this demo definition is not GAAP revenue recognition or
-          net cash collections. Unlike sales_approved_revenue, historical amounts
-          are not revalued when current exchange rates change.
+          Owned by Finance; technically maintained by Engineering. Leadership's
+          official paid-invoice revenue definition for this demo. Sums tax-inclusive
+          invoice totals for status paid in USD using payment-date FX: the latest
+          governed rate per currency on or before the date of paid_at. Groups by
+          invoice issue date to isolate the FX-policy difference from
+          sales_approved_revenue. Inspect payment_fx_rate_date for the actual
+          observation date. USD uses rate 1. This illustrative definition is not
+          GAAP revenue recognition or net cash collections.
         label: Revenue Official
-        type: simple
-        agg: sum
-        expr: invoice_amount_usd
-        fill_nulls_with: 0
-        filter: |
-          {{ Dimension('invoice__status') }} = 'paid'
-        config:
-          meta:
-            owner: finance
-            business_owner: finance
-            technical_owner: engineering
-            intended_use: official_historical_paid_invoice_reporting
-            fx_policy: invoice_issue_date
-            reporting_currency: USD
-            time_basis: issue_date
-            includes_tax: true
-            related_metric: sales_approved_revenue
-      - name: sales_approved_revenue
-        description: >
-          Owned by Sales; technically maintained by Engineering. Sums the same
-          tax-inclusive paid invoices as revenue_official in USD and groups by
-          invoice issue date, using payment-date FX: the latest governed rate
-          per currency on or before the date of paid_at. Inspect payment_fx_rate_date
-          for the actual observation date. USD uses rate 1. Not for Finance's
-          official historical reporting, GAAP recognition, or net cash collections.
-        label: Sales Approved Revenue
         type: simple
         agg: sum
         expr: invoice_amount_payment_fx_usd
@@ -198,15 +175,44 @@ models:
           {{ Dimension('invoice__status') }} = 'paid'
         config:
           meta:
+            owner: finance
+            business_owner: finance
+            technical_owner: engineering
+            intended_use: official_paid_invoice_reporting_at_payment_fx
+            fx_policy: payment_date
+            reporting_currency: USD
+            time_basis: issue_date
+            includes_tax: true
+            related_metric: sales_approved_revenue
+      - name: sales_approved_revenue
+        description: >
+          Owned by Sales; technically maintained by Engineering. Sums the same
+          tax-inclusive paid invoices as revenue_official in USD and groups by
+          invoice issue date, using each invoice's governed issue-date FX rate.
+          Preserves the sale's invoice-date value so exchange-rate movements
+          between invoicing and payment do not affect Sales performance. USD uses
+          rate 1. Not for Finance's official reporting, GAAP revenue recognition,
+          or net cash collections. Invoice issue date is the demo's sales event;
+          this metric does not use contract-signing date.
+        label: Sales Approved Revenue
+        type: simple
+        agg: sum
+        expr: invoice_amount_usd
+        fill_nulls_with: 0
+        filter: |
+          {{ Dimension('invoice__status') }} = 'paid'
+        config:
+          meta:
             owner: sales
             business_owner: sales
             technical_owner: engineering
-            intended_use: sales_paid_invoice_reporting_at_payment_fx
-            fx_policy: "payment-date FX"
+            intended_use: sales_paid_invoice_reporting_at_issue_fx
+            fx_policy: invoice_issue_date
             reporting_currency: USD
             time_basis: issue_date
             includes_tax: true
             related_metric: revenue_official
+
 
       - name: total_invoice_amount_usd
         description: Total invoiced amount converted to USD at each invoice's governed issue-date rate.
