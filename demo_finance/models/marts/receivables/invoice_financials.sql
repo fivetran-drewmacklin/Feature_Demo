@@ -44,6 +44,24 @@ fx_rates as (
 
 ),
 
+payment_fx_rates as (
+
+    select
+        invoices.invoice_id,
+        fx_rates.rate,
+        fx_rates.source_rate_date
+    from invoices
+    left join fx_rates
+        on invoices.currency = fx_rates.from_currency
+        and fx_rates.rate_date <= cast(invoices.paid_at as date)
+        and fx_rates.rate is not null
+    where invoices.status = 'paid'
+    qualify row_number() over (
+        partition by invoices.invoice_id order by fx_rates.rate_date desc
+    ) = 1
+
+),
+
 invoices_with_fx as (
 
     select
@@ -63,11 +81,23 @@ invoices_with_fx as (
         case
             when invoices.currency = 'USD' then 'identity'
             else fx_rates.provider
-        end as fx_provider
+        end as fx_provider,
+        case
+            when invoices.status <> 'paid' or invoices.paid_at is null then null
+            when invoices.currency = 'USD' then cast(1 as number(18, 8))
+            else payment_fx_rates.rate
+        end as payment_fx_rate_to_usd,
+        case
+            when invoices.status <> 'paid' or invoices.paid_at is null then null
+            when invoices.currency = 'USD' then cast(invoices.paid_at as date)
+            else payment_fx_rates.source_rate_date
+        end as payment_fx_rate_date
     from invoices
     left join fx_rates
         on invoices.issue_date = fx_rates.rate_date
         and invoices.currency = fx_rates.from_currency
+    left join payment_fx_rates
+        on invoices.invoice_id = payment_fx_rates.invoice_id
 
 )
 
@@ -111,5 +141,8 @@ select
     is_reconciled,
     reconciliation_difference_cents,
     record_updated_at,
-    _loaded_at
+    _loaded_at,
+    payment_fx_rate_to_usd,
+    payment_fx_rate_date,
+    cast(round((total_cents / 100.0) * payment_fx_rate_to_usd, 2) as number(38, 2)) as invoice_amount_payment_fx_usd
 from invoices_with_fx
